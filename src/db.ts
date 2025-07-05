@@ -1,4 +1,4 @@
-import type { HistoryResponse, SaveHistoryResult } from "./types";
+import type { HistoryResponse, SaveHistoryResult, StoredEpisode } from "./types";
 
 export async function initDatabase(db: D1Database): Promise<void> {
   // Create the episodes table
@@ -50,7 +50,7 @@ export async function saveHistory(db: D1Database, history: HistoryResponse): Pro
   return { total: result.total };
 }
 
-export async function getEpisodes(db: D1Database): Promise<any[]> {
+export async function getEpisodes(db: D1Database): Promise<StoredEpisode[]> {
   const result = await db.prepare("SELECT * FROM episodes ORDER BY published DESC LIMIT 100").all();
-  return result.results;
+  return result.results as StoredEpisode[];
 }
