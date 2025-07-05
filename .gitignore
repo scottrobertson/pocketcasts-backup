@@ -1,0 +1,33 @@
+node_modules
+pocket_casts.db
+
+# Environment variables
+.env
+.env.local
+.dev.vars
+
+# Cloudflare Workers
+.wrangler/
+worker/
+
+# TypeScript
+dist/
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Local data
+history.json
+.claude/settings.local.json

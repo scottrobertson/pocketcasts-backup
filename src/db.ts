@@ -1,0 +1,56 @@
+import type { HistoryResponse, SaveHistoryResult } from "./types";
+
+export async function initDatabase(db: D1Database): Promise<void> {
+  // Create the episodes table
+  await db.exec("CREATE TABLE IF NOT EXISTS episodes (uuid TEXT PRIMARY KEY, url TEXT, title TEXT NOT NULL, podcast_title TEXT, podcast_uuid TEXT, published TEXT, duration INTEGER, file_type TEXT, size TEXT, playing_status INTEGER, played_up_to INTEGER, is_deleted INTEGER DEFAULT 0, starred INTEGER DEFAULT 0, episode_type TEXT, episode_season INTEGER, episode_number INTEGER, author TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP, raw_data TEXT)");
+  
+  // Create indexes
+  await db.exec("CREATE INDEX IF NOT EXISTS idx_episodes_podcast_uuid ON episodes(podcast_uuid)");
+  await db.exec("CREATE INDEX IF NOT EXISTS idx_episodes_published ON episodes(published)");
+  await db.exec("CREATE INDEX IF NOT EXISTS idx_episodes_playing_status ON episodes(playing_status)");
+}
+
+export async function saveHistory(db: D1Database, history: HistoryResponse): Promise<SaveHistoryResult> {
+  const stmt = db.prepare(`
+    INSERT OR REPLACE INTO episodes (
+      uuid, url, title, podcast_title, podcast_uuid, published, 
+      duration, file_type, size, playing_status, played_up_to, 
+      is_deleted, starred, episode_type, episode_season, episode_number, 
+      author, raw_data
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  const batch: D1PreparedStatement[] = [];
+  history.episodes.forEach((episode) => {
+    batch.push(stmt.bind(
+      episode.uuid,
+      episode.url,
+      episode.title,
+      episode.podcastTitle,
+      episode.podcastUuid,
+      episode.published,
+      episode.duration,
+      episode.fileType,
+      episode.size,
+      episode.playingStatus,
+      episode.playedUpTo,
+      episode.isDeleted ? 1 : 0,
+      episode.starred ? 1 : 0,
+      episode.episodeType,
+      episode.episodeSeason,
+      episode.episodeNumber,
+      episode.author,
+      JSON.stringify(episode)
+    ));
+  });
+
+  await db.batch(batch);
+
+  const result = await db.prepare("SELECT COUNT(*) as total FROM episodes").first() as { total: number };
+  return { total: result.total };
+}
+
+export async function getEpisodes(db: D1Database): Promise<any[]> {
+  const result = await db.prepare("SELECT * FROM episodes ORDER BY published DESC LIMIT 100").all();
+  return result.results;
+}
