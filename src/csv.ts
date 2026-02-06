@@ -1,4 +1,4 @@
-import type { StoredEpisode } from "./types";
+import type { StoredEpisode } from "./schema";
 import { calculateProgress } from "./templates";
 
 function escapeCsvField(field: string | number | null): string {

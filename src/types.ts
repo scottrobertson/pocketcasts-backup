@@ -72,17 +72,6 @@ export interface BookmarkListResponse {
   bookmarks: Bookmark[];
 }
 
-export interface StoredBookmark {
-  bookmark_uuid: string;
-  podcast_uuid: string;
-  episode_uuid: string;
-  time: number;
-  title: string;
-  created_at: string;
-  deleted_at: string | null;
-  raw_data: string;
-}
-
 export interface Env {
   DB: D1Database;
   EMAIL: string;
@@ -109,48 +98,3 @@ export type ExportedHandler<Env = unknown> = {
   scheduled?: (event: ScheduledEvent, env: Env, ctx: ExecutionContext) => void | Promise<void>;
 };
 
-export interface StoredEpisode {
-  uuid: string;
-  url: string;
-  title: string;
-  podcast_title: string;
-  podcast_uuid: string;
-  published: string;
-  duration: number;
-  file_type: string;
-  size: string;
-  playing_status: number;
-  played_up_to: number;
-  is_deleted: number;
-  starred: number;
-  episode_type: string;
-  episode_season: number;
-  episode_number: number;
-  author: string;
-  slug: string;
-  podcast_slug: string;
-  created_at: string;
-  raw_data: string;
-}
-
-export interface StoredPodcast {
-  uuid: string;
-  title: string;
-  author: string;
-  description: string;
-  url: string;
-  slug: string;
-  date_added: string;
-  folder_uuid: string;
-  sort_position: number;
-  is_private: number;
-  auto_start_from: number;
-  auto_skip_last: number;
-  episodes_sort_order: number;
-  last_episode_uuid: string;
-  last_episode_published: string;
-  created_at: string;
-  updated_at: string;
-  deleted_at: string | null;
-  raw_data: string;
-}

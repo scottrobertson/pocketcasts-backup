@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { formatDuration, calculateProgress, generateEpisodesHtml, generateBookmarksHtml } from "../src/templates";
-import type { StoredEpisode, StoredBookmark } from "../src/types";
+import type { StoredEpisode, StoredBookmark } from "../src/schema";
 
 function makeEpisode(overrides: Partial<StoredEpisode> = {}): StoredEpisode {
   return {

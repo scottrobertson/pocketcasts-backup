@@ -1,45 +1,70 @@
-import type { HistoryResponse, SaveHistoryResult, StoredEpisode, PodcastListResponse, StoredPodcast, BookmarkListResponse, StoredBookmark } from "./types";
+import { drizzle } from "drizzle-orm/d1";
+import { eq, and, count, desc, asc, isNull, isNotNull, sql } from "drizzle-orm";
+import { episodes, podcasts, bookmarks } from "./schema";
+import type { StoredEpisode, StoredPodcast, StoredBookmark } from "./schema";
+import type { HistoryResponse, SaveHistoryResult, PodcastListResponse, BookmarkListResponse } from "./types";
 
-export async function saveHistory(db: D1Database, history: HistoryResponse): Promise<SaveHistoryResult> {
-  const stmt = db.prepare(`
-    INSERT OR REPLACE INTO episodes (
-      uuid, url, title, podcast_title, podcast_uuid, published,
-      duration, file_type, size, playing_status, played_up_to,
-      is_deleted, starred, episode_type, episode_season, episode_number,
-      author, slug, podcast_slug, raw_data
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
+function getDb(d1: D1Database) {
+  return drizzle(d1);
+}
 
-  const batch: D1PreparedStatement[] = [];
-  history.episodes.forEach((episode) => {
-    batch.push(stmt.bind(
-      episode.uuid,
-      episode.url,
-      episode.title,
-      episode.podcastTitle,
-      episode.podcastUuid,
-      episode.published,
-      episode.duration,
-      episode.fileType,
-      episode.size,
-      episode.playingStatus,
-      episode.playedUpTo,
-      episode.isDeleted ? 1 : 0,
-      episode.starred ? 1 : 0,
-      episode.episodeType,
-      episode.episodeSeason,
-      episode.episodeNumber,
-      episode.author,
-      episode.slug,
-      episode.podcastSlug,
-      JSON.stringify(episode)
-    ));
-  });
+export async function saveHistory(d1: D1Database, history: HistoryResponse): Promise<SaveHistoryResult> {
+  const db = getDb(d1);
 
-  await db.batch(batch);
+  const stmts = history.episodes.map((episode) =>
+    db.insert(episodes).values({
+      uuid: episode.uuid,
+      url: episode.url,
+      title: episode.title,
+      podcast_title: episode.podcastTitle,
+      podcast_uuid: episode.podcastUuid,
+      published: episode.published,
+      duration: episode.duration,
+      file_type: episode.fileType,
+      size: episode.size,
+      playing_status: episode.playingStatus,
+      played_up_to: episode.playedUpTo,
+      is_deleted: episode.isDeleted ? 1 : 0,
+      starred: episode.starred ? 1 : 0,
+      episode_type: episode.episodeType,
+      episode_season: episode.episodeSeason,
+      episode_number: episode.episodeNumber,
+      author: episode.author,
+      slug: episode.slug,
+      podcast_slug: episode.podcastSlug,
+      raw_data: JSON.stringify(episode),
+    }).onConflictDoUpdate({
+      target: episodes.uuid,
+      set: {
+        url: episode.url,
+        title: episode.title,
+        podcast_title: episode.podcastTitle,
+        podcast_uuid: episode.podcastUuid,
+        published: episode.published,
+        duration: episode.duration,
+        file_type: episode.fileType,
+        size: episode.size,
+        playing_status: episode.playingStatus,
+        played_up_to: episode.playedUpTo,
+        is_deleted: episode.isDeleted ? 1 : 0,
+        starred: episode.starred ? 1 : 0,
+        episode_type: episode.episodeType,
+        episode_season: episode.episodeSeason,
+        episode_number: episode.episodeNumber,
+        author: episode.author,
+        slug: episode.slug,
+        podcast_slug: episode.podcastSlug,
+        raw_data: JSON.stringify(episode),
+      },
+    })
+  );
 
-  const result = await db.prepare("SELECT COUNT(*) as total FROM episodes").first() as { total: number };
-  return { total: result.total };
+  if (stmts.length > 0) {
+    await db.batch(stmts as [typeof stmts[0], ...typeof stmts]);
+  }
+
+  const result = await db.select({ total: count() }).from(episodes);
+  return { total: result[0].total };
 }
 
 export type EpisodeFilter = "archived" | "in_progress" | "completed" | "not_started" | "starred";
@@ -50,164 +75,181 @@ export function parseFilters(values: string[]): EpisodeFilter[] {
   return values.filter(v => VALID_FILTERS.has(v)) as EpisodeFilter[];
 }
 
-function filterWhereClause(filters: EpisodeFilter[]): string {
-  if (filters.length === 0) return "";
-
-  const conditions = filters.map(f => {
+function buildFilterConditions(filters: EpisodeFilter[]) {
+  return filters.map(f => {
     switch (f) {
-      case "archived": return "is_deleted = 1";
-      case "in_progress": return "playing_status = 2";
-      case "completed": return "playing_status = 3";
-      case "not_started": return "playing_status = 1";
-      case "starred": return "starred = 1";
+      case "archived": return eq(episodes.is_deleted, 1);
+      case "in_progress": return eq(episodes.playing_status, 2);
+      case "completed": return eq(episodes.playing_status, 3);
+      case "not_started": return eq(episodes.playing_status, 1);
+      case "starred": return eq(episodes.starred, 1);
     }
   });
-
-  return `WHERE ${conditions.join(" AND ")}`;
 }
 
-export async function getEpisodeCount(db: D1Database, filters: EpisodeFilter[] = []): Promise<number> {
-  const where = filterWhereClause(filters);
-  const result = await db.prepare(`SELECT COUNT(*) as total FROM episodes ${where}`).first() as { total: number };
-  return result.total;
+export async function getEpisodeCount(d1: D1Database, filters: EpisodeFilter[] = []): Promise<number> {
+  const db = getDb(d1);
+  const conditions = buildFilterConditions(filters);
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const result = await db.select({ total: count() }).from(episodes).where(where);
+  return result[0].total;
 }
 
-export async function getEpisodes(db: D1Database, limit?: number, offset?: number, filters: EpisodeFilter[] = []): Promise<StoredEpisode[]> {
-  const where = filterWhereClause(filters);
+export async function getEpisodes(d1: D1Database, limit?: number, offset?: number, filters: EpisodeFilter[] = []): Promise<StoredEpisode[]> {
+  const db = getDb(d1);
+  const conditions = buildFilterConditions(filters);
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const query = db.select().from(episodes).where(where).orderBy(desc(episodes.published));
 
   if (limit !== undefined && offset !== undefined) {
-    const result = await db.prepare(
-      `SELECT * FROM episodes ${where} ORDER BY published DESC LIMIT ? OFFSET ?`
-    ).bind(limit, offset).all<StoredEpisode>();
-    return result.results;
+    return query.limit(limit).offset(offset);
   }
 
   if (limit !== undefined) {
-    const result = await db.prepare(
-      `SELECT * FROM episodes ${where} ORDER BY published DESC LIMIT ?`
-    ).bind(limit).all<StoredEpisode>();
-    return result.results;
+    return query.limit(limit);
   }
 
-  const result = await db.prepare(
-    `SELECT * FROM episodes ${where} ORDER BY published DESC`
-  ).all<StoredEpisode>();
-  return result.results;
+  return query;
 }
 
-export async function savePodcasts(db: D1Database, podcastList: PodcastListResponse): Promise<{ total: number }> {
-  const upsertStmt = db.prepare(`
-    INSERT OR REPLACE INTO podcasts (
-      uuid, title, author, description, url, slug, date_added,
-      folder_uuid, sort_position, is_private, auto_start_from,
-      auto_skip_last, episodes_sort_order, last_episode_uuid,
-      last_episode_published, updated_at, deleted_at, raw_data
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, NULL, ?)
-  `);
+export async function savePodcasts(d1: D1Database, podcastList: PodcastListResponse): Promise<{ total: number }> {
+  const db = getDb(d1);
 
-  const batch: D1PreparedStatement[] = [];
   const activeUuids = new Set<string>();
 
-  podcastList.podcasts.forEach((podcast) => {
+  const upsertStmts = podcastList.podcasts.map((podcast) => {
     activeUuids.add(podcast.uuid);
-    batch.push(upsertStmt.bind(
-      podcast.uuid,
-      podcast.title,
-      podcast.author,
-      podcast.description,
-      podcast.url,
-      podcast.slug,
-      podcast.dateAdded,
-      podcast.folderUuid,
-      podcast.sortPosition,
-      podcast.isPrivate ? 1 : 0,
-      podcast.autoStartFrom,
-      podcast.autoSkipLast,
-      podcast.episodesSortOrder,
-      podcast.lastEpisodeUuid,
-      podcast.lastEpisodePublished,
-      JSON.stringify(podcast)
-    ));
+    return db.insert(podcasts).values({
+      uuid: podcast.uuid,
+      title: podcast.title,
+      author: podcast.author,
+      description: podcast.description,
+      url: podcast.url,
+      slug: podcast.slug,
+      date_added: podcast.dateAdded,
+      folder_uuid: podcast.folderUuid,
+      sort_position: podcast.sortPosition,
+      is_private: podcast.isPrivate ? 1 : 0,
+      auto_start_from: podcast.autoStartFrom,
+      auto_skip_last: podcast.autoSkipLast,
+      episodes_sort_order: podcast.episodesSortOrder,
+      last_episode_uuid: podcast.lastEpisodeUuid,
+      last_episode_published: podcast.lastEpisodePublished,
+      updated_at: sql`CURRENT_TIMESTAMP`,
+      deleted_at: null,
+      raw_data: JSON.stringify(podcast),
+    }).onConflictDoUpdate({
+      target: podcasts.uuid,
+      set: {
+        title: podcast.title,
+        author: podcast.author,
+        description: podcast.description,
+        url: podcast.url,
+        slug: podcast.slug,
+        date_added: podcast.dateAdded,
+        folder_uuid: podcast.folderUuid,
+        sort_position: podcast.sortPosition,
+        is_private: podcast.isPrivate ? 1 : 0,
+        auto_start_from: podcast.autoStartFrom,
+        auto_skip_last: podcast.autoSkipLast,
+        episodes_sort_order: podcast.episodesSortOrder,
+        last_episode_uuid: podcast.lastEpisodeUuid,
+        last_episode_published: podcast.lastEpisodePublished,
+        updated_at: sql`CURRENT_TIMESTAMP`,
+        deleted_at: null,
+        raw_data: JSON.stringify(podcast),
+      },
+    });
   });
 
-  if (batch.length > 0) {
-    await db.batch(batch);
+  if (upsertStmts.length > 0) {
+    await db.batch(upsertStmts as [typeof upsertStmts[0], ...typeof upsertStmts]);
   }
 
   // Mark podcasts not in the API response as deleted
   if (activeUuids.size > 0) {
-    const placeholders = [...activeUuids].map(() => "?").join(",");
-    await db.prepare(
+    const uuidList = [...activeUuids];
+    const placeholders = uuidList.map(() => "?").join(",");
+    await d1.prepare(
       `UPDATE podcasts SET deleted_at = CURRENT_TIMESTAMP WHERE uuid NOT IN (${placeholders}) AND deleted_at IS NULL`
-    ).bind(...activeUuids).run();
+    ).bind(...uuidList).run();
   } else {
-    await db.prepare(
-      "UPDATE podcasts SET deleted_at = CURRENT_TIMESTAMP WHERE deleted_at IS NULL"
-    ).run();
+    await db.update(podcasts)
+      .set({ deleted_at: sql`CURRENT_TIMESTAMP` })
+      .where(isNull(podcasts.deleted_at));
   }
 
-  const result = await db.prepare("SELECT COUNT(*) as total FROM podcasts").first() as { total: number };
-  return { total: result.total };
+  const result = await db.select({ total: count() }).from(podcasts);
+  return { total: result[0].total };
 }
 
-export async function getPodcasts(db: D1Database): Promise<StoredPodcast[]> {
-  const result = await db.prepare(
-    "SELECT * FROM podcasts ORDER BY deleted_at IS NOT NULL, sort_position ASC"
-  ).all<StoredPodcast>();
-  return result.results;
+export async function getPodcasts(d1: D1Database): Promise<StoredPodcast[]> {
+  const db = getDb(d1);
+  return db.select().from(podcasts)
+    .orderBy(sql`deleted_at IS NOT NULL`, asc(podcasts.sort_position));
 }
 
-export async function getPodcastCount(db: D1Database): Promise<number> {
-  const result = await db.prepare("SELECT COUNT(*) as total FROM podcasts").first() as { total: number };
-  return result.total;
+export async function getPodcastCount(d1: D1Database): Promise<number> {
+  const db = getDb(d1);
+  const result = await db.select({ total: count() }).from(podcasts);
+  return result[0].total;
 }
 
-export async function saveBookmarks(db: D1Database, bookmarkList: BookmarkListResponse): Promise<{ total: number }> {
-  const upsertStmt = db.prepare(`
-    INSERT OR REPLACE INTO bookmarks (
-      bookmark_uuid, podcast_uuid, episode_uuid, time, title,
-      created_at, deleted_at, raw_data
-    ) VALUES (?, ?, ?, ?, ?, ?, NULL, ?)
-  `);
+export async function saveBookmarks(d1: D1Database, bookmarkList: BookmarkListResponse): Promise<{ total: number }> {
+  const db = getDb(d1);
 
-  const batch: D1PreparedStatement[] = [];
   const activeUuids = new Set<string>();
 
-  bookmarkList.bookmarks.forEach((bookmark) => {
+  const upsertStmts = bookmarkList.bookmarks.map((bookmark) => {
     activeUuids.add(bookmark.bookmarkUuid);
-    batch.push(upsertStmt.bind(
-      bookmark.bookmarkUuid,
-      bookmark.podcastUuid,
-      bookmark.episodeUuid,
-      bookmark.time,
-      bookmark.title,
-      bookmark.createdAt,
-      JSON.stringify(bookmark)
-    ));
+    return db.insert(bookmarks).values({
+      bookmark_uuid: bookmark.bookmarkUuid,
+      podcast_uuid: bookmark.podcastUuid,
+      episode_uuid: bookmark.episodeUuid,
+      time: bookmark.time,
+      title: bookmark.title,
+      created_at: bookmark.createdAt,
+      deleted_at: null,
+      raw_data: JSON.stringify(bookmark),
+    }).onConflictDoUpdate({
+      target: bookmarks.bookmark_uuid,
+      set: {
+        podcast_uuid: bookmark.podcastUuid,
+        episode_uuid: bookmark.episodeUuid,
+        time: bookmark.time,
+        title: bookmark.title,
+        created_at: bookmark.createdAt,
+        deleted_at: null,
+        raw_data: JSON.stringify(bookmark),
+      },
+    });
   });
 
-  if (batch.length > 0) {
-    await db.batch(batch);
+  if (upsertStmts.length > 0) {
+    await db.batch(upsertStmts as [typeof upsertStmts[0], ...typeof upsertStmts]);
   }
 
+  // Mark bookmarks not in the API response as deleted
   if (activeUuids.size > 0) {
-    const placeholders = [...activeUuids].map(() => "?").join(",");
-    await db.prepare(
+    const uuidList = [...activeUuids];
+    const placeholders = uuidList.map(() => "?").join(",");
+    await d1.prepare(
       `UPDATE bookmarks SET deleted_at = CURRENT_TIMESTAMP WHERE bookmark_uuid NOT IN (${placeholders}) AND deleted_at IS NULL`
-    ).bind(...activeUuids).run();
+    ).bind(...uuidList).run();
   } else {
-    await db.prepare(
-      "UPDATE bookmarks SET deleted_at = CURRENT_TIMESTAMP WHERE deleted_at IS NULL"
-    ).run();
+    await db.update(bookmarks)
+      .set({ deleted_at: sql`CURRENT_TIMESTAMP` })
+      .where(isNull(bookmarks.deleted_at));
   }
 
-  const result = await db.prepare("SELECT COUNT(*) as total FROM bookmarks").first() as { total: number };
-  return { total: result.total };
+  const result = await db.select({ total: count() }).from(bookmarks);
+  return { total: result[0].total };
 }
 
-export async function getBookmarks(db: D1Database): Promise<StoredBookmark[]> {
-  const result = await db.prepare(
-    "SELECT * FROM bookmarks ORDER BY deleted_at IS NOT NULL, created_at DESC"
-  ).all<StoredBookmark>();
-  return result.results;
+export async function getBookmarks(d1: D1Database): Promise<StoredBookmark[]> {
+  const db = getDb(d1);
+  return db.select().from(bookmarks)
+    .orderBy(sql`deleted_at IS NOT NULL`, desc(bookmarks.created_at));
 }

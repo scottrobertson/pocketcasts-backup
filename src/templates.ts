@@ -1,4 +1,4 @@
-import type { StoredEpisode, StoredPodcast, StoredBookmark } from "./types";
+import type { StoredEpisode, StoredPodcast, StoredBookmark } from "./schema";
 import type { EpisodeFilter } from "./db";
 
 export function formatDuration(seconds: number): string {
