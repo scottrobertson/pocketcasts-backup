@@ -118,6 +118,26 @@ describe("generateEpisodesHtml", () => {
     expect(html).toContain("50%");
   });
 
+  it("shows Completed badge for finished episodes", () => {
+    const html = generateEpisodesHtml([makeEpisode({ playing_status: 3 })], 1, 1, 50, "pass");
+    expect(html).toContain("Completed");
+  });
+
+  it("shows In Progress badge for partially played episodes", () => {
+    const html = generateEpisodesHtml([makeEpisode({ playing_status: 2, played_up_to: 300 })], 1, 1, 50, "pass");
+    expect(html).toContain("In Progress");
+  });
+
+  it("shows Archived badge for deleted episodes", () => {
+    const html = generateEpisodesHtml([makeEpisode({ is_deleted: 1 })], 1, 1, 50, "pass");
+    expect(html).toContain("Archived");
+  });
+
+  it("dims archived episodes", () => {
+    const html = generateEpisodesHtml([makeEpisode({ is_deleted: 1 })], 1, 1, 50, "pass");
+    expect(html).toContain("opacity-60");
+  });
+
   it("includes backup button in nav", () => {
     const html = generateEpisodesHtml([], 0, 1, 50, "pass");
     expect(html).toContain("Backup Now");
@@ -147,6 +167,30 @@ describe("generateEpisodesHtml", () => {
     const html = generateEpisodesHtml([], 30, 1, 50, "pass");
     expect(html).not.toContain("Previous");
     expect(html).not.toContain("Next");
+  });
+
+  it("shows Starred badge for starred episodes", () => {
+    const html = generateEpisodesHtml([makeEpisode({ starred: 1 })], 1, 1, 50, "pass");
+    expect(html).toContain("Starred");
+  });
+
+  it("shows filter buttons", () => {
+    const html = generateEpisodesHtml([], 0, 1, 50, "pass");
+    expect(html).toContain("In Progress");
+    expect(html).toContain("Archived");
+    expect(html).toContain("Starred");
+    expect(html).toContain("Not Started");
+  });
+
+  it("highlights active filters", () => {
+    const html = generateEpisodesHtml([], 0, 1, 50, "pass", ["starred"]);
+    expect(html).toContain("bg-gray-900 text-white");
+  });
+
+  it("preserves filters in pagination links", () => {
+    const html = generateEpisodesHtml([], 120, 1, 50, "pass", ["starred", "archived"]);
+    expect(html).toContain("filter=starred");
+    expect(html).toContain("filter=archived");
   });
 });
 

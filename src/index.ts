@@ -2,7 +2,7 @@
 
 import { login } from "./login";
 import { getListenHistory, getPodcastList, getBookmarks } from "./api";
-import { saveHistory, savePodcasts, saveBookmarks, getEpisodes, getEpisodeCount, getPodcasts, getBookmarks as getStoredBookmarks } from "./db";
+import { saveHistory, savePodcasts, saveBookmarks, getEpisodes, getEpisodeCount, getPodcasts, getBookmarks as getStoredBookmarks, parseFilters } from "./db";
 import { generateEpisodesHtml, generatePodcastsHtml, generateBookmarksHtml } from "./templates";
 import { generateCsv } from "./csv";
 import type { Env, BackupResult, ExportedHandler } from "./types";
@@ -80,13 +80,14 @@ async function handleEpisodes(request: Request, env: Env): Promise<Response> {
 
   try {
     const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10) || 1);
+    const filters = parseFilters(url.searchParams.getAll("filter"));
     const offset = (page - 1) * EPISODES_PER_PAGE;
 
     const [episodes, totalEpisodes] = await Promise.all([
-      getEpisodes(env.DB, EPISODES_PER_PAGE, offset),
-      getEpisodeCount(env.DB),
+      getEpisodes(env.DB, EPISODES_PER_PAGE, offset, filters),
+      getEpisodeCount(env.DB, filters),
     ]);
-    const html = generateEpisodesHtml(episodes, totalEpisodes, page, EPISODES_PER_PAGE, password);
+    const html = generateEpisodesHtml(episodes, totalEpisodes, page, EPISODES_PER_PAGE, password, filters);
     return new Response(html, {
       headers: { "Content-Type": "text/html" },
     });
@@ -145,7 +146,8 @@ async function handleExport(request: Request, env: Env): Promise<Response> {
   }
 
   try {
-    const episodes = await getEpisodes(env.DB);
+    const filters = parseFilters(url.searchParams.getAll("filter"));
+    const episodes = await getEpisodes(env.DB, undefined, undefined, filters);
     const csv = generateCsv(episodes);
 
     return new Response(csv, {

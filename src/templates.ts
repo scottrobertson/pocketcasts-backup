@@ -1,4 +1,5 @@
 import type { StoredEpisode, StoredPodcast, StoredBookmark } from "./types";
+import type { EpisodeFilter } from "./db";
 
 export function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
@@ -28,7 +29,7 @@ function layout(title: string, password: string | null, content: string): string
     <title>${title}</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-gray-50 min-h-screen overflow-y-scroll">
     <nav class="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
             <div class="flex items-center gap-6">
@@ -85,13 +86,28 @@ function layout(title: string, password: string | null, content: string): string
 </html>`;
 }
 
+function episodeBadges(episode: StoredEpisode): string {
+  let badges = '';
+  if (episode.is_deleted) {
+    badges += `<span class="ml-2 bg-gray-500 text-white text-xs font-normal px-2 py-0.5 rounded">Archived</span>`;
+  } else if (episode.playing_status === 3) {
+    badges += `<span class="ml-2 bg-green-500 text-white text-xs font-normal px-2 py-0.5 rounded">Completed</span>`;
+  } else if (episode.playing_status === 2) {
+    badges += `<span class="ml-2 bg-blue-500 text-white text-xs font-normal px-2 py-0.5 rounded">In Progress</span>`;
+  }
+  if (episode.starred) {
+    badges += `<span class="ml-2 bg-yellow-500 text-white text-xs font-normal px-2 py-0.5 rounded">Starred</span>`;
+  }
+  return badges;
+}
+
 function generateEpisodeHtml(episode: StoredEpisode): string {
   const progress = calculateProgress(episode.played_up_to, episode.duration);
   const publishedDate = new Date(episode.published).toLocaleDateString();
 
   return `
-    <div class="border border-gray-200 rounded-lg p-4 bg-white">
-        <div class="font-semibold text-gray-900">${episode.title}</div>
+    <div class="border border-gray-200 rounded-lg p-4 bg-white${episode.is_deleted ? ' opacity-60' : ''}">
+        <div class="font-semibold text-gray-900">${episode.title}${episodeBadges(episode)}</div>
         <div class="text-gray-500 text-sm mt-1">${episode.podcast_title}</div>
         <div class="text-gray-400 text-sm mt-1">
             Duration: ${formatDuration(episode.duration)} |
@@ -105,26 +121,60 @@ function generateEpisodeHtml(episode: StoredEpisode): string {
     </div>`;
 }
 
-export function generateEpisodesHtml(episodes: StoredEpisode[], totalEpisodes: number, page: number, perPage: number, password: string | null): string {
+const FILTER_OPTIONS: { value: EpisodeFilter; label: string }[] = [
+  { value: "in_progress", label: "In Progress" },
+  { value: "completed", label: "Completed" },
+  { value: "not_started", label: "Not Started" },
+  { value: "archived", label: "Archived" },
+  { value: "starred", label: "Starred" },
+];
+
+function buildEpisodeParams(password: string | null, filters: EpisodeFilter[], page?: number): string {
+  const parts: string[] = [];
+  if (password) parts.push(`password=${encodeURIComponent(password)}`);
+  filters.forEach(f => parts.push(`filter=${encodeURIComponent(f)}`));
+  if (page && page > 1) parts.push(`page=${page}`);
+  return parts.length > 0 ? `?${parts.join('&')}` : '';
+}
+
+export function generateEpisodesHtml(episodes: StoredEpisode[], totalEpisodes: number, page: number, perPage: number, password: string | null, filters: EpisodeFilter[] = []): string {
   const totalPages = Math.ceil(totalEpisodes / perPage);
-  const params = password ? `&password=${encodeURIComponent(password)}` : '';
+  const activeFilters = new Set(filters);
+
+  const filterButtons = FILTER_OPTIONS.map(opt => {
+    const isActive = activeFilters.has(opt.value);
+    const nextFilters = isActive
+      ? filters.filter(f => f !== opt.value)
+      : [...filters, opt.value];
+    const href = `/episodes${buildEpisodeParams(password, nextFilters)}`;
+    const style = isActive
+      ? 'bg-gray-900 text-white'
+      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100';
+    return `<a href="${href}" class="px-3 py-1.5 text-sm font-medium rounded ${style}">${opt.label}</a>`;
+  }).join('');
 
   const content = `
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center justify-between mb-4">
         <h1 class="text-2xl font-bold text-gray-900">Episodes</h1>
         <div class="flex items-center gap-3">
             <span class="text-sm text-gray-500">${totalEpisodes} episodes</span>
-            <a href="/export?password=${encodeURIComponent(password || '')}" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-3 py-1.5 rounded">Download CSV</a>
+            <a href="/export${buildEpisodeParams(password, filters)}" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-3 py-1.5 rounded">Download CSV</a>
         </div>
+    </div>
+    <div class="flex flex-wrap items-center gap-2 mb-4">
+        <span class="text-sm text-gray-400 mr-1">Filter:</span>
+        ${filterButtons}
+        ${filters.length > 0 ? `<a href="/episodes${buildEpisodeParams(password, [])}" class="px-3 py-1.5 text-sm font-medium rounded border border-gray-300 text-gray-400 hover:text-gray-600 hover:bg-gray-100">Clear</a>` : ''}
+        ${filters.length > 1 ? `<span class="text-xs text-gray-400 ml-1">Matching all selected</span>` : ''}
     </div>
     <div class="flex flex-col gap-3">
         ${episodes.map(episode => generateEpisodeHtml(episode)).join('')}
     </div>
     ${totalPages > 1 ? `
     <div class="flex items-center justify-center gap-2 mt-6">
-        ${page > 1 ? `<a href="/episodes?page=${page - 1}${params}" class="px-3 py-1.5 text-sm font-medium rounded border border-gray-300 text-gray-700 hover:bg-gray-100">Previous</a>` : ''}
+        ${page > 1 ? `<a href="/episodes${buildEpisodeParams(password, filters, page - 1)}" class="px-3 py-1.5 text-sm font-medium rounded border border-gray-300 text-gray-700 hover:bg-gray-100">Previous</a>` : ''}
         <span class="text-sm text-gray-500">Page ${page} of ${totalPages}</span>
-        ${page < totalPages ? `<a href="/episodes?page=${page + 1}${params}" class="px-3 py-1.5 text-sm font-medium rounded border border-gray-300 text-gray-700 hover:bg-gray-100">Next</a>` : ''}
+        ${page < totalPages ? `<a href="/episodes${buildEpisodeParams(password, filters, page + 1)}" class="px-3 py-1.5 text-sm font-medium rounded border border-gray-300 text-gray-700 hover:bg-gray-100">Next</a>` : ''}
     </div>` : ''}`;
 
   return layout("Pocketcasts Episodes", password, content);

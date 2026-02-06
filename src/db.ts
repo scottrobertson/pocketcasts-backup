@@ -42,28 +42,55 @@ export async function saveHistory(db: D1Database, history: HistoryResponse): Pro
   return { total: result.total };
 }
 
-export async function getEpisodeCount(db: D1Database): Promise<number> {
-  const result = await db.prepare("SELECT COUNT(*) as total FROM episodes").first() as { total: number };
+export type EpisodeFilter = "archived" | "in_progress" | "completed" | "not_started" | "starred";
+
+const VALID_FILTERS = new Set<string>(["archived", "in_progress", "completed", "not_started", "starred"]);
+
+export function parseFilters(values: string[]): EpisodeFilter[] {
+  return values.filter(v => VALID_FILTERS.has(v)) as EpisodeFilter[];
+}
+
+function filterWhereClause(filters: EpisodeFilter[]): string {
+  if (filters.length === 0) return "";
+
+  const conditions = filters.map(f => {
+    switch (f) {
+      case "archived": return "is_deleted = 1";
+      case "in_progress": return "playing_status = 2";
+      case "completed": return "playing_status = 3";
+      case "not_started": return "playing_status = 1";
+      case "starred": return "starred = 1";
+    }
+  });
+
+  return `WHERE ${conditions.join(" AND ")}`;
+}
+
+export async function getEpisodeCount(db: D1Database, filters: EpisodeFilter[] = []): Promise<number> {
+  const where = filterWhereClause(filters);
+  const result = await db.prepare(`SELECT COUNT(*) as total FROM episodes ${where}`).first() as { total: number };
   return result.total;
 }
 
-export async function getEpisodes(db: D1Database, limit?: number, offset?: number): Promise<StoredEpisode[]> {
+export async function getEpisodes(db: D1Database, limit?: number, offset?: number, filters: EpisodeFilter[] = []): Promise<StoredEpisode[]> {
+  const where = filterWhereClause(filters);
+
   if (limit !== undefined && offset !== undefined) {
     const result = await db.prepare(
-      "SELECT * FROM episodes ORDER BY published DESC LIMIT ? OFFSET ?"
+      `SELECT * FROM episodes ${where} ORDER BY published DESC LIMIT ? OFFSET ?`
     ).bind(limit, offset).all<StoredEpisode>();
     return result.results;
   }
 
   if (limit !== undefined) {
     const result = await db.prepare(
-      "SELECT * FROM episodes ORDER BY published DESC LIMIT ?"
+      `SELECT * FROM episodes ${where} ORDER BY published DESC LIMIT ?`
     ).bind(limit).all<StoredEpisode>();
     return result.results;
   }
 
   const result = await db.prepare(
-    "SELECT * FROM episodes ORDER BY published DESC"
+    `SELECT * FROM episodes ${where} ORDER BY published DESC`
   ).all<StoredEpisode>();
   return result.results;
 }
