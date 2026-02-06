@@ -1,17 +1,21 @@
 # Pocketcasts Backup
 
-A Cloudflare Worker that backs up your Pocket Casts listen history and podcast subscriptions to a D1 database. It runs on an hourly cron, and provides a web UI to browse your history, view your subscriptions, and export as CSV.
+A Cloudflare Worker that backs up your Pocket Casts data to a D1 database. Runs on an hourly cron with a web UI to browse everything.
+
+## What gets backed up
+
+- **Episodes** — your full listen history, including play progress, duration, and starred status
+- **Podcasts** — all your subscriptions with metadata. Unsubscribed podcasts are kept with a removal date rather than deleted.
+- **Bookmarks** — all your bookmarks with timestamps. Deleted bookmarks are kept with a removal date rather than deleted.
+
+Everything is stored in Cloudflare D1 and synced automatically every hour.
 
 ## Features
 
-- Automatically syncs your listen history every hour
-- Backs up your podcast subscriptions with full metadata
-- Tracks unsubscribed podcasts with the date they were removed
-- Stores everything in Cloudflare D1
-- Web interface to browse recent episodes with progress tracking
-- Podcasts page showing active and removed subscriptions
-- CSV export of your full history
-- Manual backup trigger via `/backup`
+- Web UI with episodes, podcasts, and bookmarks pages
+- Pagination on the episodes page
+- CSV export of your full episode history
+- Manual backup trigger via the UI or `/backup`
 
 ## Deploy to Cloudflare
 
@@ -69,18 +73,19 @@ npm run deploy
 
 The Pocket Casts API only returns the most recent 100 episodes per request. The worker runs hourly to make sure new listens are captured before they fall outside that window. Each run upserts episodes into D1, so duplicates are handled automatically and your history grows over time.
 
-It also fetches your current podcast subscriptions on each run. If you unsubscribe from a podcast, it stays in the database with a `deleted_at` timestamp rather than being removed. If you re-subscribe later, the timestamp is cleared. This gives you a full record of what you've been subscribed to over time.
+It also fetches your current podcast subscriptions and bookmarks on each run. If you unsubscribe from a podcast or delete a bookmark, it stays in the database with a `deleted_at` timestamp rather than being removed. If you re-subscribe or re-add later, the timestamp is cleared. This gives you a full record of what you've been subscribed to and bookmarked over time.
 
 ## Endpoints
 
 | Path | Description |
 |---|---|
 | `/backup` | Triggers a backup manually |
-| `/history?password=YOUR_PASS` | Browse your listen history |
+| `/episodes?password=YOUR_PASS` | Browse your episodes with pagination |
 | `/podcasts?password=YOUR_PASS` | View your podcast subscriptions |
-| `/export?password=YOUR_PASS` | Download your full history as CSV |
+| `/bookmarks?password=YOUR_PASS` | View your bookmarks |
+| `/export?password=YOUR_PASS` | Download your full episode history as CSV |
 
-The `/history` and `/export` endpoints are protected by your Pocket Casts password.
+All endpoints except `/backup` are protected by your Pocket Casts password. The old `/history` path redirects to `/episodes`.
 
 ## Database Migrations
 
