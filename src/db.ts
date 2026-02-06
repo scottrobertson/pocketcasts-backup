@@ -64,6 +64,6 @@ export async function getEpisodes(db: D1Database, limit?: number): Promise<Store
     ? db.prepare(query).bind(limit)
     : db.prepare(query);
     
-  const result = await stmt.all();
-  return result.results as StoredEpisode[];
+  const result = await stmt.all<StoredEpisode>();
+  return result.results;
 }

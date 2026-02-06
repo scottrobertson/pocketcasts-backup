@@ -16,5 +16,5 @@ export async function getListenHistory(token: string): Promise<HistoryResponse> 
     console.log(await res.text());
     throw new Error("Failed to fetch listen history");
   }
-  return res.json() as HistoryResponse;
+  return await res.json() as HistoryResponse;
 }
