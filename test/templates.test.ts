@@ -118,9 +118,9 @@ describe("generateEpisodesHtml", () => {
     expect(html).toContain("50%");
   });
 
-  it("shows Completed badge for finished episodes", () => {
+  it("shows Played badge for finished episodes", () => {
     const html = generateEpisodesHtml([makeEpisode({ playing_status: 3 })], 1, 1, 50, "pass");
-    expect(html).toContain("Completed");
+    expect(html).toContain("Played");
   });
 
   it("shows In Progress badge for partially played episodes", () => {

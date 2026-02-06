@@ -92,7 +92,7 @@ function episodeBadges(episode: StoredEpisode): string {
     badges += `<span class="ml-2 bg-gray-500 text-white text-xs font-normal px-2 py-0.5 rounded">Archived</span>`;
   }
   if (episode.playing_status === 3) {
-    badges += `<span class="ml-2 bg-green-500 text-white text-xs font-normal px-2 py-0.5 rounded">Completed</span>`;
+    badges += `<span class="ml-2 bg-green-500 text-white text-xs font-normal px-2 py-0.5 rounded">Played</span>`;
   } else if (episode.playing_status === 2) {
     badges += `<span class="ml-2 bg-blue-500 text-white text-xs font-normal px-2 py-0.5 rounded">In Progress</span>`;
   }
@@ -124,7 +124,7 @@ function generateEpisodeHtml(episode: StoredEpisode): string {
 
 const FILTER_OPTIONS: { value: EpisodeFilter; label: string }[] = [
   { value: "in_progress", label: "In Progress" },
-  { value: "completed", label: "Completed" },
+  { value: "played", label: "Played" },
   { value: "not_started", label: "Not Started" },
   { value: "archived", label: "Archived" },
   { value: "starred", label: "Starred" },
