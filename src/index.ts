@@ -1,9 +1,9 @@
 /// <reference types="@cloudflare/workers-types" />
 
 import { login } from "./login";
-import { getListenHistory } from "./history";
-import { saveHistory, getEpisodes, getEpisodeCount } from "./db";
-import { generateHistoryHtml } from "./templates";
+import { getListenHistory, getPodcastList } from "./api";
+import { saveHistory, savePodcasts, getEpisodes, getEpisodeCount, getPodcasts } from "./db";
+import { generateHistoryHtml, generatePodcastsHtml } from "./templates";
 import { generateCsv } from "./csv";
 import type { Env, BackupResult, ExportedHandler } from "./types";
 
@@ -16,6 +16,8 @@ const worker: ExportedHandler<Env> = {
         return handleBackup(env);
       case "/history":
         return handleHistory(request, env);
+      case "/podcasts":
+        return handlePodcasts(request, env);
       case "/export":
         return handleExport(request, env);
       default:
@@ -35,14 +37,21 @@ async function handleBackup(env: Env): Promise<Response> {
     validateEnvironment(env);
 
     const token = await login(env.EMAIL, env.PASS);
-    const history = await getListenHistory(token);
-    const savedHistory = await saveHistory(env.DB, history);
+    const [history, podcastList] = await Promise.all([
+      getListenHistory(token),
+      getPodcastList(token),
+    ]);
+    const [savedHistory, savedPodcasts] = await Promise.all([
+      saveHistory(env.DB, history),
+      savePodcasts(env.DB, podcastList),
+    ]);
 
     const response: BackupResult = {
       success: true,
-      message: "History saved successfully",
+      message: "Backup completed successfully",
       synced: history.episodes.length,
       total: savedHistory.total,
+      podcasts: savedPodcasts.total,
     };
 
     return createJsonResponse(response);
@@ -72,6 +81,26 @@ async function handleHistory(request: Request, env: Env): Promise<Response> {
   } catch (error) {
     console.error("History failed:", error);
     return new Response("Error loading history", { status: 500 });
+  }
+}
+
+async function handlePodcasts(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const password = url.searchParams.get("password");
+
+  if (!isAuthorized(password, env.PASS)) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  try {
+    const podcasts = await getPodcasts(env.DB);
+    const html = generatePodcastsHtml(podcasts, password);
+    return new Response(html, {
+      headers: { "Content-Type": "text/html" },
+    });
+  } catch (error) {
+    console.error("Podcasts failed:", error);
+    return new Response("Error loading podcasts", { status: 500 });
   }
 }
 
