@@ -1,3 +1,6 @@
+// Standalone script for running a backup locally without Cloudflare Workers.
+// Usage: EMAIL=you@example.com PASS=yourpass node index.js
+
 import { login } from "./src/login.js";
 import { getListenHistory } from "./src/history.js";
 import { saveHistory } from "./src/db.js";
