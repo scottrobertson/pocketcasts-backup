@@ -90,7 +90,8 @@ function episodeBadges(episode: StoredEpisode): string {
   let badges = '';
   if (episode.is_deleted) {
     badges += `<span class="ml-2 bg-gray-500 text-white text-xs font-normal px-2 py-0.5 rounded">Archived</span>`;
-  } else if (episode.playing_status === 3) {
+  }
+  if (episode.playing_status === 3) {
     badges += `<span class="ml-2 bg-green-500 text-white text-xs font-normal px-2 py-0.5 rounded">Completed</span>`;
   } else if (episode.playing_status === 2) {
     badges += `<span class="ml-2 bg-blue-500 text-white text-xs font-normal px-2 py-0.5 rounded">In Progress</span>`;
@@ -106,7 +107,7 @@ function generateEpisodeHtml(episode: StoredEpisode): string {
   const publishedDate = new Date(episode.published).toLocaleDateString();
 
   return `
-    <div class="border border-gray-200 rounded-lg p-4 bg-white${episode.is_deleted ? ' opacity-60' : ''}">
+    <div class="border border-gray-200 rounded-lg p-4 bg-white">
         <div class="font-semibold text-gray-900">${episode.title}${episodeBadges(episode)}</div>
         <div class="text-gray-500 text-sm mt-1">${episode.podcast_title}</div>
         <div class="text-gray-400 text-sm mt-1">

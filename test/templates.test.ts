@@ -133,10 +133,6 @@ describe("generateEpisodesHtml", () => {
     expect(html).toContain("Archived");
   });
 
-  it("dims archived episodes", () => {
-    const html = generateEpisodesHtml([makeEpisode({ is_deleted: 1 })], 1, 1, 50, "pass");
-    expect(html).toContain("opacity-60");
-  });
 
   it("includes backup button in nav", () => {
     const html = generateEpisodesHtml([], 0, 1, 50, "pass");
