@@ -16,8 +16,6 @@ const worker: ExportedHandler<Env> = {
         return handleBackup(env);
       case "/episodes":
         return handleEpisodes(request, env);
-      case "/history":
-        return Response.redirect(new URL("/episodes" + new URL(request.url).search, request.url).toString(), 301);
       case "/podcasts":
         return handlePodcasts(request, env);
       case "/bookmarks":

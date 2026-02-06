@@ -30,12 +30,6 @@ describe("worker routes", () => {
     expect(response.headers.get("Content-Type")).toBe("text/html");
   });
 
-  it("redirects /history to /episodes", async () => {
-    const response = await SELF.fetch("https://example.com/history?password=test", { redirect: "manual" });
-    expect(response.status).toBe(301);
-    expect(response.headers.get("Location")).toContain("/episodes");
-  });
-
   it("returns 401 on /podcasts without password", async () => {
     const response = await SELF.fetch("https://example.com/podcasts");
     expect(response.status).toBe(401);
