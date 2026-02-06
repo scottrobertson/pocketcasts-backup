@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { generateCsv } from "./csv";
-import type { StoredEpisode } from "./types";
+import { generateCsv } from "../src/csv";
+import type { StoredEpisode } from "../src/types";
 
 function makeEpisode(overrides: Partial<StoredEpisode> = {}): StoredEpisode {
   return {

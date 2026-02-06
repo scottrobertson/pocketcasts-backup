@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { formatDuration, calculateProgress, generateHistoryHtml } from "./templates";
-import type { StoredEpisode } from "./types";
+import { formatDuration, calculateProgress, generateHistoryHtml } from "../src/templates";
+import type { StoredEpisode } from "../src/types";
 
 function makeEpisode(overrides: Partial<StoredEpisode> = {}): StoredEpisode {
   return {

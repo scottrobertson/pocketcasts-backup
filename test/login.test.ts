@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { login } from "./login";
+import { login } from "../src/login";
 
 beforeEach(() => {
   vi.restoreAllMocks();

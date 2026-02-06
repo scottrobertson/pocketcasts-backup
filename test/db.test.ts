@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { env } from "cloudflare:test";
 import { applyD1Migrations } from "cloudflare:test";
-import { saveHistory, getEpisodes, getEpisodeCount } from "./db";
-import type { HistoryResponse } from "./types";
+import { saveHistory, getEpisodes, getEpisodeCount } from "../src/db";
+import type { HistoryResponse } from "../src/types";
 
 function makeEpisode(overrides: Partial<HistoryResponse["episodes"][number]> = {}) {
   return {

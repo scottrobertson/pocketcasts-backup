@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { getListenHistory } from "./history";
+import { getListenHistory } from "../src/history";
 
 beforeEach(() => {
   vi.restoreAllMocks();
