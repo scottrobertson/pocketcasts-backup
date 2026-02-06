@@ -9,6 +9,7 @@ localhost.sqlite3
 
 # Cloudflare Workers
 .wrangler/
+wrangler.toml
 worker/
 
 # TypeScript
