@@ -1,4 +1,4 @@
-import type { StoredEpisode } from "./types";
+import type { StoredEpisode, StoredPodcast } from "./types";
 
 export function formatDuration(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
@@ -36,6 +36,15 @@ function generateEpisodeHtml(episode: StoredEpisode): string {
         </div>
         <div class="meta">Published: ${publishedDate}</div>
     </div>`;
+}
+
+function generateNavHtml(password: string | null): string {
+  const params = password ? `?password=${encodeURIComponent(password)}` : '';
+  return `
+    <nav style="margin-bottom: 20px;">
+        <a href="/history${params}" style="margin-right: 15px;">History</a>
+        <a href="/podcasts${params}" style="margin-right: 15px;">Podcasts</a>
+    </nav>`;
 }
 
 export function generateHistoryHtml(episodes: StoredEpisode[], totalEpisodes: number, password: string | null): string {
@@ -111,9 +120,12 @@ export function generateHistoryHtml(episodes: StoredEpisode[], totalEpisodes: nu
         .backup-status.error {
             color: #dc3545;
         }
+        nav a { color: #007cba; text-decoration: none; font-weight: bold; }
+        nav a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
+    ${generateNavHtml(password)}
     <h1>Pocketcasts Listen History</h1>
     <div class="stats">
         <strong>Total Episodes:</strong> ${totalEpisodes}
@@ -158,6 +170,84 @@ export function generateHistoryHtml(episodes: StoredEpisode[], totalEpisodes: nu
             button.textContent = 'Backup Now';
         }
     </script>
+</body>
+</html>`;
+}
+
+function generatePodcastHtml(podcast: StoredPodcast): string {
+  const addedDate = new Date(podcast.date_added).toLocaleDateString();
+  const isDeleted = podcast.deleted_at !== null;
+  const deletedDate = isDeleted ? new Date(podcast.deleted_at!).toLocaleDateString() : null;
+
+  return `
+    <div class="podcast-card${isDeleted ? ' deleted' : ''}">
+        <div class="podcast-title">${podcast.title}${isDeleted ? ` <span class="deleted-badge">Removed ${deletedDate}</span>` : ''}</div>
+        <div class="podcast-author">${podcast.author}</div>
+        <div class="podcast-description">${podcast.description}</div>
+        <div class="podcast-meta">Added: ${addedDate}</div>
+    </div>`;
+}
+
+export function generatePodcastsHtml(podcasts: StoredPodcast[], password: string | null): string {
+  const active = podcasts.filter(p => p.deleted_at === null);
+  const deleted = podcasts.filter(p => p.deleted_at !== null);
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+    <title>Pocketcasts Podcasts</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .podcast-card {
+            border: 1px solid #ddd;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .podcast-card.deleted {
+            opacity: 0.6;
+            border-color: #eee;
+        }
+        .podcast-title { font-weight: bold; font-size: 1.1em; }
+        .podcast-author { color: #666; margin: 5px 0; }
+        .podcast-description { color: #444; font-size: 0.95em; margin: 8px 0; }
+        .podcast-meta { color: #999; font-size: 0.9em; }
+        .deleted-badge {
+            background: #dc3545;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 0.75em;
+            font-weight: normal;
+            margin-left: 8px;
+        }
+        .stats {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .section-heading {
+            margin-top: 30px;
+            color: #666;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+        }
+        nav a { color: #007cba; text-decoration: none; font-weight: bold; }
+        nav a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    ${generateNavHtml(password)}
+    <h1>Pocketcasts Podcasts</h1>
+    <div class="stats">
+        <strong>Subscribed:</strong> ${active.length}
+        ${deleted.length > 0 ? `| <strong>Removed:</strong> ${deleted.length}` : ''}
+    </div>
+    ${active.map(p => generatePodcastHtml(p)).join('')}
+    ${deleted.length > 0 ? `
+    <h2 class="section-heading">Removed Podcasts</h2>
+    ${deleted.map(p => generatePodcastHtml(p)).join('')}` : ''}
 </body>
 </html>`;
 }

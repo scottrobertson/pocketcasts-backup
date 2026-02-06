@@ -4,6 +4,7 @@ import { applyD1Migrations } from "cloudflare:test";
 
 beforeEach(async () => {
   await env.DB.exec("DROP TABLE IF EXISTS episodes");
+  await env.DB.exec("DROP TABLE IF EXISTS podcasts");
   await applyD1Migrations(env.DB, env.TEST_MIGRATIONS);
 });
 
@@ -26,6 +27,21 @@ describe("worker routes", () => {
     );
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toBe("text/html");
+  });
+
+  it("returns 401 on /podcasts without password", async () => {
+    const response = await SELF.fetch("https://example.com/podcasts");
+    expect(response.status).toBe(401);
+  });
+
+  it("returns HTML on /podcasts with correct password", async () => {
+    const response = await SELF.fetch(
+      `https://example.com/podcasts?password=${env.PASS}`
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toBe("text/html");
+    const html = await response.text();
+    expect(html).toContain("Pocketcasts Podcasts");
   });
 
   it("returns 401 on /export without password", async () => {
