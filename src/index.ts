@@ -2,8 +2,9 @@
 
 import { login } from "./login";
 import { getEpisodeSyncData, getPodcastEpisodeMetadata, getPodcastList, getBookmarks } from "./api";
-import { getExistingEpisodeUuids, updateEpisodeSyncData, insertNewEpisodes, savePodcasts, saveBookmarks, getEpisodes, getEpisodeCount, getPodcasts, getBookmarks as getStoredBookmarks, parseFilters } from "./db";
+import { getExistingEpisodeUuids, updateEpisodeSyncData, insertNewEpisodes, savePodcasts, saveBookmarks, getEpisodes, getEpisodeCount, getPodcasts, getBookmarks as getStoredBookmarks, parseFilters, updateEpisodePlayedAt } from "./db";
 import type { EpisodeUpdate, NewEpisode } from "./db";
+import { getListenHistory } from "./history";
 import { generateEpisodesHtml, generatePodcastsHtml, generateBookmarksHtml } from "./templates";
 import { generateCsv } from "./csv";
 import type { Env, BackupResult, ExportedHandler, EpisodeSyncItem, CacheEpisode } from "./types";
@@ -166,6 +167,11 @@ async function handleBackup(env: Env): Promise<Response> {
       );
       totalSynced += results.reduce((sum, n) => sum + n, 0);
     }
+
+    console.log("[History] Fetching listen history");
+    const history = await getListenHistory(token);
+    console.log(`[History] Got ${history.length} played episodes`);
+    await updateEpisodePlayedAt(env.DB, history);
 
     const totalEpisodes = await getEpisodeCount(env.DB);
 

@@ -1,9 +1,10 @@
 import { drizzle } from "drizzle-orm/d1";
 import type { BatchItem } from "drizzle-orm/batch";
-import { eq, and, count, desc, asc, inArray, isNull, sql } from "drizzle-orm";
+import { eq, and, count, desc, asc, inArray, isNull, isNotNull, sql } from "drizzle-orm";
 import { episodes, podcasts, bookmarks } from "./schema";
 import type { StoredEpisode, StoredPodcast, StoredBookmark } from "./schema";
 import type { PodcastListResponse, BookmarkListResponse } from "./types";
+import type { HistoryEntry } from "./history";
 
 function getDb(d1: D1Database) {
   return drizzle(d1);
@@ -172,9 +173,10 @@ export async function getEpisodes(d1: D1Database, limit?: number, offset?: numbe
   const conditions = buildFilterConditions(filters);
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-  // Order: in_progress (2) first, then played (3), then not started (1), then by published date
+  // Order by played_at descending, episodes without played_at go last, then by published date
   const query = db.select().from(episodes).where(where).orderBy(
-    sql`CASE ${episodes.playing_status} WHEN 2 THEN 0 WHEN 3 THEN 1 WHEN 1 THEN 2 ELSE 3 END`,
+    sql`${episodes.played_at} IS NULL`,
+    desc(episodes.played_at),
     desc(episodes.published)
   );
 
@@ -327,4 +329,21 @@ export async function getBookmarks(d1: D1Database): Promise<StoredBookmark[]> {
   const db = getDb(d1);
   return db.select().from(bookmarks)
     .orderBy(sql`deleted_at IS NOT NULL`, desc(bookmarks.created_at));
+}
+
+export async function updateEpisodePlayedAt(d1: D1Database, entries: HistoryEntry[]): Promise<void> {
+  if (entries.length === 0) return;
+
+  const db = getDb(d1);
+
+  const stmts = entries.map((entry) => {
+    return db.update(episodes)
+      .set({ played_at: entry.played_at })
+      .where(and(
+        eq(episodes.uuid, entry.uuid),
+        isNull(episodes.played_at),
+      ));
+  });
+
+  await batchExecute(db, stmts);
 }

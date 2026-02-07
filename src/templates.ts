@@ -102,9 +102,35 @@ function episodeBadges(episode: StoredEpisode): string {
   return badges;
 }
 
+function formatPlayedAt(playedAt: string): string {
+  const date = new Date(playedAt);
+  return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+
+function getDayKey(playedAt: string | null): string {
+  if (!playedAt) return "";
+  return playedAt.slice(0, 10); // YYYY-MM-DD
+}
+
+function formatDayHeading(dayKey: string): string {
+  const date = new Date(dayKey + "T00:00:00Z");
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  const todayKey = today.toISOString().slice(0, 10);
+  const yesterdayKey = yesterday.toISOString().slice(0, 10);
+
+  if (dayKey === todayKey) return "Today";
+  if (dayKey === yesterdayKey) return "Yesterday";
+
+  return date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
+}
+
 function generateEpisodeHtml(episode: StoredEpisode): string {
   const progress = calculateProgress(episode.played_up_to, episode.duration);
   const publishedDate = new Date(episode.published).toLocaleDateString();
+  const playedAtTime = episode.played_at ? formatPlayedAt(episode.played_at) : null;
 
   return `
     <div class="border border-gray-200 rounded-lg p-4 bg-white">
@@ -118,8 +144,29 @@ function generateEpisodeHtml(episode: StoredEpisode): string {
         <div class="bg-gray-100 h-1.5 rounded-full mt-2">
             <div class="bg-green-500 h-full rounded-full" style="width: ${progress}%"></div>
         </div>
-        <div class="text-gray-400 text-sm mt-1">Published: ${publishedDate}</div>
+        <div class="text-gray-400 text-sm mt-1">Published: ${publishedDate}${playedAtTime ? ` · Listened: ${playedAtTime}` : ''}</div>
     </div>`;
+}
+
+function generateGroupedEpisodesHtml(episodes: StoredEpisode[]): string {
+  let html = '';
+  let currentDay = '';
+
+  for (const episode of episodes) {
+    const dayKey = getDayKey(episode.played_at);
+
+    if (dayKey && dayKey !== currentDay) {
+      currentDay = dayKey;
+      html += `<h2 class="text-lg font-semibold text-gray-700 mt-6 mb-2 first:mt-0">${formatDayHeading(dayKey)}</h2>`;
+    } else if (!dayKey && currentDay !== '') {
+      currentDay = '';
+      html += `<h2 class="text-lg font-semibold text-gray-700 mt-6 mb-2">Older</h2>`;
+    }
+
+    html += generateEpisodeHtml(episode);
+  }
+
+  return html;
 }
 
 const FILTER_OPTIONS: { value: EpisodeFilter; label: string }[] = [
@@ -169,7 +216,7 @@ export function generateEpisodesHtml(episodes: StoredEpisode[], totalEpisodes: n
         ${filters.length > 1 ? `<span class="text-xs text-gray-400 ml-1">Matching all selected</span>` : ''}
     </div>
     <div class="flex flex-col gap-3">
-        ${episodes.map(episode => generateEpisodeHtml(episode)).join('')}
+        ${generateGroupedEpisodesHtml(episodes)}
     </div>
     ${totalPages > 1 ? `
     <div class="flex items-center justify-center gap-2 mt-6">

@@ -138,18 +138,22 @@ describe("updateEpisodeSyncData", () => {
 });
 
 describe("getEpisodes", () => {
-  it("orders by status then published date", async () => {
+  it("orders by played_at descending, nulls last, then by published date", async () => {
     await insertNewEpisodes(env.DB, [
-      makeNewEpisode({ uuid: "ep-played", playing_status: 3, published: "2024-03-01T00:00:00Z" }),
-      makeNewEpisode({ uuid: "ep-progress", playing_status: 2, published: "2024-01-01T00:00:00Z" }),
-      makeNewEpisode({ uuid: "ep-not-started", playing_status: 1, published: "2024-02-01T00:00:00Z" }),
+      makeNewEpisode({ uuid: "ep-no-date", playing_status: 3, published: "2024-03-01T00:00:00Z" }),
+      makeNewEpisode({ uuid: "ep-older", playing_status: 3, published: "2024-01-01T00:00:00Z" }),
+      makeNewEpisode({ uuid: "ep-recent", playing_status: 2, published: "2024-02-01T00:00:00Z" }),
     ]);
+
+    // Set played_at on two of them
+    await env.DB.exec("UPDATE episodes SET played_at = '2024-03-10T12:00:00Z' WHERE uuid = 'ep-recent'");
+    await env.DB.exec("UPDATE episodes SET played_at = '2024-03-05T12:00:00Z' WHERE uuid = 'ep-older'");
 
     const episodes = await getEpisodes(env.DB);
     expect(episodes).toHaveLength(3);
-    expect(episodes[0].uuid).toBe("ep-progress");
-    expect(episodes[1].uuid).toBe("ep-played");
-    expect(episodes[2].uuid).toBe("ep-not-started");
+    expect(episodes[0].uuid).toBe("ep-recent");
+    expect(episodes[1].uuid).toBe("ep-older");
+    expect(episodes[2].uuid).toBe("ep-no-date");
   });
 
   it("respects limit parameter", async () => {
