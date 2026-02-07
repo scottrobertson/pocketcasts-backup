@@ -66,9 +66,8 @@ function layout(title: string, password: string | null, content: string): string
                 const result = await response.json();
 
                 if (result.success) {
-                    status.textContent = 'Done';
+                    status.textContent = 'Backup enqueued';
                     status.className = 'text-sm text-green-600';
-                    setTimeout(() => { window.location.reload(); }, 1000);
                 } else {
                     status.textContent = 'Error: ' + result.error;
                     status.className = 'text-sm text-red-600';
