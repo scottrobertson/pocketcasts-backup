@@ -137,8 +137,7 @@ function generateEpisodeHtml(episode: StoredEpisode): string {
         <div class="text-gray-500 text-sm mt-1">${episode.podcast_title}</div>
         <div class="text-gray-400 text-sm mt-1">
             Duration: ${formatDuration(episode.duration)} |
-            Played: ${formatDuration(episode.played_up_to)} |
-            Progress: ${progress}%
+            Progress: ${formatDuration(episode.played_up_to)} / ${formatDuration(episode.duration)} (${progress}%)
         </div>
         <div class="bg-gray-100 h-1.5 rounded-full mt-2">
             <div class="bg-green-500 h-full rounded-full" style="width: ${progress}%"></div>
