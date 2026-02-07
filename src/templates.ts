@@ -108,7 +108,7 @@ export function formatRelativeDate(isoString: string | null): string {
 
 function statusDot(episode: StoredEpisode): string {
   const wrapper = (dot: string, label: string) =>
-    `<div class="group relative flex justify-center">${dot}<div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 rounded bg-[#fafafa] text-[#0a0a0a] text-[11px] font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 shadow-lg">${label}</div></div>`;
+    `<div class="group relative flex">${dot}<div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 rounded bg-[#fafafa] text-[#0a0a0a] text-[11px] font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 shadow-lg">${label}</div></div>`;
 
   if (episode.playing_status === 3) {
     return wrapper(`<div class="w-2 h-2 rounded-full bg-[#22c55e] mt-1.5 shrink-0"></div>`, 'Played');
@@ -144,27 +144,32 @@ function formatDayHeading(dayKey: string): string {
   return date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
 }
 
+function tooltip(content: string, label: string): string {
+  return `<div class="group/tip relative">${content}<div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 rounded bg-[#fafafa] text-[#0a0a0a] text-[11px] font-medium whitespace-nowrap opacity-0 group-hover/tip:opacity-100 pointer-events-none transition-opacity duration-150 shadow-lg">${label}</div></div>`;
+}
+
 function generateEpisodeHtml(episode: StoredEpisode): string {
   const progress = calculateProgress(episode.played_up_to, episode.duration);
+  const progressLabel = `${formatDuration(episode.played_up_to)} / ${formatDuration(episode.duration)}`;
 
   const icons: string[] = [];
   if (episode.starred) icons.push(`<span class="text-amber-400 text-[11px]" title="Starred">★</span>`);
-  if (episode.is_deleted) icons.push(`<span class="text-zinc-500" title="Archived"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8V21H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg></span>`);
+  if (episode.is_deleted) icons.push(tooltip(`<span class="text-zinc-500"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8V21H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg></span>`, 'Archived'));
 
   return `
-    <div class="grid items-center px-1 sm:px-3 h-[52px] border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors duration-150" style="grid-template-columns: 16px 1fr 24px 120px 52px; gap: 8px">
+    <div class="grid items-center pr-1 sm:pr-3 h-[52px] border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors duration-150" style="grid-template-columns: 12px 1fr 24px 120px 52px; gap: 8px">
         ${statusDot(episode)}
         <div class="min-w-0">
             <div class="text-[#ededef] text-[13px] font-medium truncate">${episode.title}</div>
             <div class="text-[#71717a] text-xs truncate">${episode.podcast_title}</div>
         </div>
         <div class="flex justify-center">${icons.length ? icons.join('') : ''}</div>
-        <div class="flex items-center gap-2">
+        ${tooltip(`<div class="flex items-center gap-2 cursor-default">
             <div class="w-16 h-[3px] bg-[#1c1c1f] rounded-full overflow-hidden shrink-0">
                 <div class="bg-[#3ecf8e] h-full rounded-full" style="width: ${progress}%"></div>
             </div>
             <span class="text-[#71717a] text-xs">${progress}%</span>
-        </div>
+        </div>`, progressLabel)}
         <div class="text-[#555] text-xs text-right">${formatRelativeDate(episode.played_at)}</div>
     </div>`;
 }

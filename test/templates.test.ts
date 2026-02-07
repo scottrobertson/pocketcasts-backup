@@ -192,8 +192,8 @@ describe("generateEpisodesHtml", () => {
 
   it("shows Archived badge for deleted episodes", () => {
     const html = generateEpisodesHtml([makeEpisode({ is_deleted: 1 })], 1, 1, 50, "pass");
-    // Filter label uses plain text; the episode icon uses title="Archived"
-    expect(html).toContain('title="Archived"');
+    // The archived icon has a styled tooltip with "Archived" text
+    expect(html).toContain('>Archived<');
   });
 
 
