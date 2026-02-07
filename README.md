@@ -64,7 +64,13 @@ npx wrangler secret put EMAIL
 npx wrangler secret put PASS
 ```
 
-6. Apply the database migrations and deploy:
+6. Create the queue:
+
+```bash
+npx wrangler queues create pocketcasts-backup
+```
+
+7. Apply the database migrations and deploy:
 
 ```bash
 npx wrangler d1 migrations apply pocketcasts-history --remote
@@ -72,6 +78,8 @@ npm run deploy
 ```
 
 ## How it works
+
+Backups are split across a Cloudflare Queue so each podcast gets its own Worker invocation, avoiding the subrequest limit. Triggering a backup enqueues one message per podcast, and once all podcasts are synced, a final message fetches your listen history timestamps.
 
 The Pocket Casts API only returns the most recent 100 episodes per request. The worker runs hourly to make sure new listens are captured before they fall outside that window. Each run upserts episodes into D1, so duplicates are handled automatically and your history grows over time.
 
