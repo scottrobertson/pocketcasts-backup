@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatDuration, calculateProgress, generateEpisodesHtml, generateBookmarksHtml } from "../src/templates";
+import { formatDuration, calculateProgress, generateEpisodesHtml, generateBookmarksHtml, formatRelativeDate } from "../src/templates";
 import type { StoredEpisode, StoredBookmark } from "../src/schema";
 
 function makeEpisode(overrides: Partial<StoredEpisode> = {}): StoredEpisode {
@@ -87,6 +87,33 @@ describe("calculateProgress", () => {
   });
 });
 
+describe("formatRelativeDate", () => {
+  it("returns dash for null", () => {
+    expect(formatRelativeDate(null)).toBe("\u2014");
+  });
+
+  it("returns minutes ago for recent dates", () => {
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    expect(formatRelativeDate(fiveMinutesAgo)).toBe("5m ago");
+  });
+
+  it("returns hours ago for dates within a day", () => {
+    const threeHoursAgo = new Date(Date.now() - 3 * 3600 * 1000).toISOString();
+    expect(formatRelativeDate(threeHoursAgo)).toBe("3h ago");
+  });
+
+  it("returns days ago for dates within a week", () => {
+    const twoDaysAgo = new Date(Date.now() - 2 * 86400 * 1000).toISOString();
+    expect(formatRelativeDate(twoDaysAgo)).toBe("2d ago");
+  });
+
+  it("returns month and day for dates within a year", () => {
+    const result = formatRelativeDate("2024-06-15T00:00:00Z");
+    expect(result).toContain("Jun");
+    expect(result).toContain("15");
+  });
+});
+
 describe("generateEpisodesHtml", () => {
   it("includes the total episode count", () => {
     const html = generateEpisodesHtml([], 42, 1, 50, "pass");
@@ -108,13 +135,12 @@ describe("generateEpisodesHtml", () => {
     expect(html).toContain("/export?password=secret");
   });
 
-  it("includes formatted duration and progress", () => {
+  it("includes progress percentage", () => {
     const html = generateEpisodesHtml(
       [makeEpisode({ duration: 3661, played_up_to: 1830 })],
       1, 1, 50,
       "pass"
     );
-    expect(html).toContain("1h 1m 1s");
     expect(html).toContain("50%");
   });
 
@@ -180,7 +206,7 @@ describe("generateEpisodesHtml", () => {
 
   it("highlights active filters", () => {
     const html = generateEpisodesHtml([], 0, 1, 50, "pass", ["starred"]);
-    expect(html).toContain("bg-gray-900 text-white");
+    expect(html).toContain("bg-white/[0.08] border-[#3ecf8e]/40 text-[#3ecf8e]");
   });
 
   it("preserves filters in pagination links", () => {

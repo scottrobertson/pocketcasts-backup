@@ -27,27 +27,31 @@ function layout(title: string, password: string | null, content: string): string
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>${title}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>body { font-family: 'Inter', system-ui, sans-serif; }</style>
 </head>
-<body class="bg-gray-50 min-h-screen overflow-y-scroll">
-    <nav class="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+<body class="bg-[#0a0a0a] min-h-screen overflow-y-scroll">
+    <nav class="bg-[#111113] border-b border-[#1f1f23] sticky top-0 z-10">
+        <div class="max-w-4xl mx-auto px-6 h-12 flex items-center justify-between">
             <div class="flex items-center gap-6">
-                <span class="font-semibold text-gray-900">Pocketcasts Backup</span>
+                <span class="text-[#fafafa] font-semibold text-sm">Pocketcasts Backup</span>
                 <div class="flex gap-4">
-                    <a href="/episodes${params}" class="text-sm font-medium text-gray-600 hover:text-gray-900">Episodes</a>
-                    <a href="/podcasts${params}" class="text-sm font-medium text-gray-600 hover:text-gray-900">Podcasts</a>
-                    <a href="/bookmarks${params}" class="text-sm font-medium text-gray-600 hover:text-gray-900">Bookmarks</a>
+                    <a href="/episodes${params}" class="text-[13px] font-medium text-[#71717a] hover:text-[#fafafa] transition-colors duration-150">Episodes</a>
+                    <a href="/podcasts${params}" class="text-[13px] font-medium text-[#71717a] hover:text-[#fafafa] transition-colors duration-150">Podcasts</a>
+                    <a href="/bookmarks${params}" class="text-[13px] font-medium text-[#71717a] hover:text-[#fafafa] transition-colors duration-150">Bookmarks</a>
                 </div>
             </div>
             <div class="flex items-center gap-3">
-                <span id="backup-status" class="text-sm"></span>
-                <button onclick="runBackup()" class="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white text-sm font-medium px-3 py-1.5 rounded">Backup Now</button>
+                <span id="backup-status" class="text-xs"></span>
+                <button onclick="runBackup()" class="bg-[#3ecf8e] hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed text-[#0a0a0a] text-xs font-medium px-3 h-8 rounded-md transition-all duration-150">Backup Now</button>
             </div>
         </div>
     </nav>
 
-    <main class="max-w-4xl mx-auto px-4 py-6">
+    <main class="max-w-4xl mx-auto px-6 py-6">
         ${content}
     </main>
 
@@ -59,7 +63,7 @@ function layout(title: string, password: string | null, content: string): string
             button.disabled = true;
             button.textContent = 'Running...';
             status.textContent = '';
-            status.className = 'text-sm';
+            status.className = 'text-xs';
 
             try {
                 const response = await fetch('/backup');
@@ -67,14 +71,14 @@ function layout(title: string, password: string | null, content: string): string
 
                 if (result.success) {
                     status.textContent = 'Backup enqueued';
-                    status.className = 'text-sm text-green-600';
+                    status.className = 'text-xs text-[#3ecf8e]';
                 } else {
                     status.textContent = 'Error: ' + result.error;
-                    status.className = 'text-sm text-red-600';
+                    status.className = 'text-xs text-[#ef4444]';
                 }
             } catch (error) {
                 status.textContent = 'Backup failed';
-                status.className = 'text-sm text-red-600';
+                status.className = 'text-xs text-[#ef4444]';
             }
 
             button.disabled = false;
@@ -85,20 +89,33 @@ function layout(title: string, password: string | null, content: string): string
 </html>`;
 }
 
-function episodeBadges(episode: StoredEpisode): string {
-  let badges = '';
-  if (episode.is_deleted) {
-    badges += `<span class="ml-2 bg-gray-500 text-white text-xs font-normal px-2 py-0.5 rounded">Archived</span>`;
-  }
+export function formatRelativeDate(isoString: string | null): string {
+  if (!isoString) return "\u2014";
+  const date = new Date(isoString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMinutes = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffDays < 365) return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function statusDot(episode: StoredEpisode): string {
+  const wrapper = (dot: string, label: string) =>
+    `<div class="group relative flex justify-center">${dot}<div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 rounded bg-[#fafafa] text-[#0a0a0a] text-[11px] font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 shadow-lg">${label}</div></div>`;
+
   if (episode.playing_status === 3) {
-    badges += `<span class="ml-2 bg-green-500 text-white text-xs font-normal px-2 py-0.5 rounded">Played</span>`;
-  } else if (episode.playing_status === 2) {
-    badges += `<span class="ml-2 bg-blue-500 text-white text-xs font-normal px-2 py-0.5 rounded">In Progress</span>`;
+    return wrapper(`<div class="w-2 h-2 rounded-full bg-[#22c55e] mt-1.5 shrink-0"></div>`, 'Played');
   }
-  if (episode.starred) {
-    badges += `<span class="ml-2 bg-yellow-500 text-white text-xs font-normal px-2 py-0.5 rounded">Starred</span>`;
+  if (episode.playing_status === 2) {
+    return wrapper(`<div class="w-2 h-2 rounded-full bg-[#3b82f6] mt-1.5 shrink-0"></div>`, 'In Progress');
   }
-  return badges;
+  return wrapper(`<div class="w-2 h-2 rounded-full border border-[#27272a] mt-1.5 shrink-0"></div>`, 'Not Started');
 }
 
 function formatPlayedAt(playedAt: string): string {
@@ -128,21 +145,26 @@ function formatDayHeading(dayKey: string): string {
 
 function generateEpisodeHtml(episode: StoredEpisode): string {
   const progress = calculateProgress(episode.played_up_to, episode.duration);
-  const publishedDate = new Date(episode.published).toLocaleDateString();
-  const playedAtTime = episode.played_at ? formatPlayedAt(episode.played_at) : null;
+
+  const icons: string[] = [];
+  if (episode.starred) icons.push(`<span class="text-amber-400 text-[11px]" title="Starred">★</span>`);
+  if (episode.is_deleted) icons.push(`<span class="text-zinc-500" title="Archived"><svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8V21H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg></span>`);
 
   return `
-    <div class="border border-gray-200 rounded-lg p-4 bg-white">
-        <div class="font-semibold text-gray-900">${episode.title}${episodeBadges(episode)}</div>
-        <div class="text-gray-500 text-sm mt-1">${episode.podcast_title}</div>
-        <div class="text-gray-400 text-sm mt-1">
-            Duration: ${formatDuration(episode.duration)} |
-            Progress: ${formatDuration(episode.played_up_to)} / ${formatDuration(episode.duration)} (${progress}%)
+    <div class="grid items-center px-3 h-[52px] border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors duration-150" style="grid-template-columns: 16px 1fr 24px 120px 52px; gap: 8px">
+        ${statusDot(episode)}
+        <div class="min-w-0">
+            <div class="text-[#ededef] text-[13px] font-medium truncate">${episode.title}</div>
+            <div class="text-[#71717a] text-xs truncate">${episode.podcast_title}</div>
         </div>
-        <div class="bg-gray-100 h-1.5 rounded-full mt-2">
-            <div class="bg-green-500 h-full rounded-full" style="width: ${progress}%"></div>
+        <div class="flex justify-center">${icons.length ? icons.join('') : ''}</div>
+        <div class="flex items-center gap-2">
+            <div class="w-16 h-[3px] bg-[#1c1c1f] rounded-full overflow-hidden shrink-0">
+                <div class="bg-[#3ecf8e] h-full rounded-full" style="width: ${progress}%"></div>
+            </div>
+            <span class="text-[#71717a] text-xs">${progress}%</span>
         </div>
-        <div class="text-gray-400 text-sm mt-1">Published: ${publishedDate}${playedAtTime ? ` · Listened: ${playedAtTime}` : ''}</div>
+        <div class="text-[#555] text-xs text-right">${formatRelativeDate(episode.played_at)}</div>
     </div>`;
 }
 
@@ -155,10 +177,10 @@ function generateGroupedEpisodesHtml(episodes: StoredEpisode[]): string {
 
     if (dayKey && dayKey !== currentDay) {
       currentDay = dayKey;
-      html += `<h2 class="text-lg font-semibold text-gray-700 mt-6 mb-2 first:mt-0">${formatDayHeading(dayKey)}</h2>`;
+      html += `<div class="flex items-center gap-3 mt-5 mb-2 first:mt-3"><span class="text-[11px] uppercase tracking-wider text-[#71717a] font-medium whitespace-nowrap">${formatDayHeading(dayKey)}</span><div class="h-px bg-white/[0.06] flex-1"></div></div>`;
     } else if (!dayKey && currentDay !== '') {
       currentDay = '';
-      html += `<h2 class="text-lg font-semibold text-gray-700 mt-6 mb-2">Older</h2>`;
+      html += `<div class="flex items-center gap-3 mt-5 mb-2"><span class="text-[11px] uppercase tracking-wider text-[#71717a] font-medium whitespace-nowrap">Older</span><div class="h-px bg-white/[0.06] flex-1"></div></div>`;
     }
 
     html += generateEpisodeHtml(episode);
@@ -194,33 +216,39 @@ export function generateEpisodesHtml(episodes: StoredEpisode[], totalEpisodes: n
       : [...filters, opt.value];
     const href = `/episodes${buildEpisodeParams(password, nextFilters)}`;
     const style = isActive
-      ? 'bg-gray-900 text-white'
-      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100';
-    return `<a href="${href}" class="px-3 py-1.5 text-sm font-medium rounded ${style}">${opt.label}</a>`;
+      ? 'bg-white/[0.08] border-[#3ecf8e]/40 text-[#3ecf8e]'
+      : 'bg-transparent border-[#27272a] text-[#71717a] hover:text-[#fafafa] hover:border-[#3a3a3a]';
+    return `<a href="${href}" class="px-2.5 h-7 inline-flex items-center text-xs font-medium rounded-md border ${style} transition-all duration-150">${opt.label}</a>`;
   }).join('');
 
   const content = `
     <div class="flex items-center justify-between mb-4">
-        <h1 class="text-2xl font-bold text-gray-900">Episodes</h1>
+        <h1 class="text-base font-semibold text-[#fafafa] tracking-tight">Episodes</h1>
         <div class="flex items-center gap-3">
-            <span class="text-sm text-gray-500">${totalEpisodes} episodes</span>
-            <a href="/export${buildEpisodeParams(password, filters)}" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-3 py-1.5 rounded">Download CSV</a>
+            <span class="text-xs text-[#71717a]">${totalEpisodes} episodes</span>
+            <a href="/export${buildEpisodeParams(password, filters)}" class="h-8 inline-flex items-center px-3 text-xs font-medium rounded-md border border-[#27272a] text-[#fafafa] hover:bg-white/[0.04] transition-all duration-150">Download CSV</a>
         </div>
     </div>
-    <div class="flex flex-wrap items-center gap-2 mb-4">
-        <span class="text-sm text-gray-400 mr-1">Filter:</span>
+    <div class="flex flex-wrap items-center gap-2 mb-3">
         ${filterButtons}
-        ${filters.length > 0 ? `<a href="/episodes${buildEpisodeParams(password, [])}" class="px-3 py-1.5 text-sm font-medium rounded border border-gray-300 text-gray-400 hover:text-gray-600 hover:bg-gray-100">Clear</a>` : ''}
-        ${filters.length > 1 ? `<span class="text-xs text-gray-400 ml-1">Matching all selected</span>` : ''}
+        ${filters.length > 0 ? `<a href="/episodes${buildEpisodeParams(password, [])}" class="px-2.5 h-7 inline-flex items-center text-xs font-medium rounded-md text-[#555] hover:text-[#71717a] transition-colors duration-150">Clear</a>` : ''}
+        ${filters.length > 1 ? `<span class="text-[11px] text-[#555] ml-1">Matching all selected</span>` : ''}
     </div>
-    <div class="flex flex-col gap-3">
+    <div class="px-3 grid items-center" style="grid-template-columns: 16px 1fr 24px 120px 52px; gap: 8px">
+        <div></div>
+        <div></div>
+        <div></div>
+        <div class="text-[11px] uppercase tracking-wider text-[#71717a] font-medium py-2">Progress</div>
+        <div class="text-[11px] uppercase tracking-wider text-[#71717a] font-medium py-2 text-right">Played</div>
+    </div>
+    <div>
         ${generateGroupedEpisodesHtml(episodes)}
     </div>
     ${totalPages > 1 ? `
     <div class="flex items-center justify-center gap-2 mt-6">
-        ${page > 1 ? `<a href="/episodes${buildEpisodeParams(password, filters, page - 1)}" class="px-3 py-1.5 text-sm font-medium rounded border border-gray-300 text-gray-700 hover:bg-gray-100">Previous</a>` : ''}
-        <span class="text-sm text-gray-500">Page ${page} of ${totalPages}</span>
-        ${page < totalPages ? `<a href="/episodes${buildEpisodeParams(password, filters, page + 1)}" class="px-3 py-1.5 text-sm font-medium rounded border border-gray-300 text-gray-700 hover:bg-gray-100">Next</a>` : ''}
+        ${page > 1 ? `<a href="/episodes${buildEpisodeParams(password, filters, page - 1)}" class="h-8 inline-flex items-center px-3 text-xs font-medium rounded-md border border-[#27272a] text-[#71717a] hover:text-[#fafafa] hover:bg-white/[0.04] transition-all duration-150">Previous</a>` : ''}
+        <span class="text-xs text-[#555]">Page ${page} of ${totalPages}</span>
+        ${page < totalPages ? `<a href="/episodes${buildEpisodeParams(password, filters, page + 1)}" class="h-8 inline-flex items-center px-3 text-xs font-medium rounded-md border border-[#27272a] text-[#71717a] hover:text-[#fafafa] hover:bg-white/[0.04] transition-all duration-150">Next</a>` : ''}
     </div>` : ''}`;
 
   return layout("Pocketcasts Episodes", password, content);
@@ -232,14 +260,14 @@ function generatePodcastHtml(podcast: StoredPodcast): string {
   const deletedDate = isDeleted ? new Date(podcast.deleted_at!).toLocaleDateString() : null;
 
   return `
-    <div class="border border-gray-200 rounded-lg p-4 bg-white${isDeleted ? ' opacity-60' : ''}">
-        <div class="font-semibold text-gray-900">
+    <div class="bg-[#111113] border border-[#1f1f23] rounded-lg p-3 hover:border-[#27272a] transition-colors duration-150${isDeleted ? ' opacity-60' : ''}">
+        <div class="text-[#ededef] text-[13px] font-medium">
             ${podcast.title}
-            ${isDeleted ? `<span class="ml-2 bg-red-500 text-white text-xs font-normal px-2 py-0.5 rounded">Removed ${deletedDate}</span>` : ''}
+            ${isDeleted ? `<span class="ml-2 bg-red-500/10 text-red-400 text-[11px] font-medium px-2 py-0.5 rounded-full">Removed ${deletedDate}</span>` : ''}
         </div>
-        <div class="text-gray-500 text-sm mt-1">${podcast.author}</div>
-        <div class="text-gray-600 text-sm mt-2">${podcast.description}</div>
-        <div class="text-gray-400 text-sm mt-1">Added: ${addedDate}</div>
+        <div class="text-[#71717a] text-xs mt-1">${podcast.author}</div>
+        <div class="text-[#888] text-xs mt-2 leading-relaxed">${podcast.description}</div>
+        <div class="text-[#555] text-xs mt-1">Added: ${addedDate}</div>
     </div>`;
 }
 
@@ -248,18 +276,18 @@ export function generatePodcastsHtml(podcasts: StoredPodcast[], password: string
   const deleted = podcasts.filter(p => p.deleted_at !== null);
 
   const content = `
-    <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-bold text-gray-900">Podcasts</h1>
-        <span class="text-sm text-gray-500">
+    <div class="flex items-center justify-between mb-4">
+        <h1 class="text-base font-semibold text-[#fafafa] tracking-tight">Podcasts</h1>
+        <span class="text-xs text-[#71717a]">
             ${active.length} subscribed${deleted.length > 0 ? ` · ${deleted.length} removed` : ''}
         </span>
     </div>
-    <div class="flex flex-col gap-3">
+    <div class="flex flex-col gap-2">
         ${active.map(p => generatePodcastHtml(p)).join('')}
     </div>
     ${deleted.length > 0 ? `
-    <h2 class="text-lg font-semibold text-gray-500 mt-8 mb-4 border-b border-gray-200 pb-2">Removed Podcasts</h2>
-    <div class="flex flex-col gap-3">
+    <div class="text-[11px] uppercase tracking-wider text-[#71717a] font-medium mt-8 mb-3 pb-2 border-b border-[#1f1f23]">Removed Podcasts</div>
+    <div class="flex flex-col gap-2">
         ${deleted.map(p => generatePodcastHtml(p)).join('')}
     </div>` : ''}`;
 
@@ -272,12 +300,12 @@ function generateBookmarkHtml(bookmark: StoredBookmark): string {
   const deletedDate = isDeleted ? new Date(bookmark.deleted_at!).toLocaleDateString() : null;
 
   return `
-    <div class="border border-gray-200 rounded-lg p-4 bg-white${isDeleted ? ' opacity-60' : ''}">
-        <div class="font-semibold text-gray-900">
+    <div class="bg-[#111113] border border-[#1f1f23] rounded-lg p-3 hover:border-[#27272a] transition-colors duration-150${isDeleted ? ' opacity-60' : ''}">
+        <div class="text-[#ededef] text-[13px] font-medium">
             ${bookmark.title}
-            ${isDeleted ? `<span class="ml-2 bg-red-500 text-white text-xs font-normal px-2 py-0.5 rounded">Removed ${deletedDate}</span>` : ''}
+            ${isDeleted ? `<span class="ml-2 bg-red-500/10 text-red-400 text-[11px] font-medium px-2 py-0.5 rounded-full">Removed ${deletedDate}</span>` : ''}
         </div>
-        <div class="text-gray-400 text-sm mt-1">
+        <div class="text-[#555] text-xs mt-1">
             at ${formatDuration(bookmark.time)} · ${createdDate}
         </div>
     </div>`;
@@ -288,18 +316,18 @@ export function generateBookmarksHtml(bookmarks: StoredBookmark[], password: str
   const deleted = bookmarks.filter(b => b.deleted_at !== null);
 
   const content = `
-    <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-bold text-gray-900">Bookmarks</h1>
-        <span class="text-sm text-gray-500">
+    <div class="flex items-center justify-between mb-4">
+        <h1 class="text-base font-semibold text-[#fafafa] tracking-tight">Bookmarks</h1>
+        <span class="text-xs text-[#71717a]">
             ${active.length} bookmarks${deleted.length > 0 ? ` · ${deleted.length} removed` : ''}
         </span>
     </div>
-    <div class="flex flex-col gap-3">
+    <div class="flex flex-col gap-2">
         ${active.map(b => generateBookmarkHtml(b)).join('')}
     </div>
     ${deleted.length > 0 ? `
-    <h2 class="text-lg font-semibold text-gray-500 mt-8 mb-4 border-b border-gray-200 pb-2">Removed Bookmarks</h2>
-    <div class="flex flex-col gap-3">
+    <div class="text-[11px] uppercase tracking-wider text-[#71717a] font-medium mt-8 mb-3 pb-2 border-b border-[#1f1f23]">Removed Bookmarks</div>
+    <div class="flex flex-col gap-2">
         ${deleted.map(b => generateBookmarkHtml(b)).join('')}
     </div>` : ''}`;
 
