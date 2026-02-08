@@ -7,7 +7,7 @@ export default defineWorkersConfig(async () => {
 
   return {
     test: {
-      include: ["test/**/*.test.ts"],
+      include: ["test/**/*.test.{ts,tsx}"],
       poolOptions: {
         workers: {
           wrangler: { configPath: "./wrangler.toml" },

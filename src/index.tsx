@@ -1,45 +1,110 @@
 /// <reference types="@cloudflare/workers-types" />
 
+import { Hono } from "hono";
 import { login } from "./login";
 import { getEpisodeSyncData, getPodcastEpisodeMetadata, getPodcastList, getBookmarks } from "./api";
 import { getExistingEpisodeUuids, updateEpisodeSyncData, insertNewEpisodes, savePodcasts, saveBookmarks, getEpisodes, getEpisodeCount, getPodcastsWithStats, getBookmarksWithEpisodes, updatePodcastEpisodeCount, parseFilters, updateEpisodePlayedAt, resetBackupProgress, incrementBackupProgress } from "./db";
 import type { EpisodeUpdate, NewEpisode } from "./db";
 import { getListenHistory } from "./history";
-import { generateEpisodesHtml, generatePodcastsHtml, generateBookmarksHtml } from "./templates";
+import { EpisodesPage } from "./components/EpisodesPage";
+import { PodcastsPage } from "./components/PodcastsPage";
+import { BookmarksPage } from "./components/BookmarksPage";
 import { generateCsv } from "./csv";
 import type { Env, BackupResult, BackupQueueMessage, EpisodeSyncItem, CacheEpisode } from "./types";
 
-export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    const url = new URL(request.url);
+const app = new Hono<{ Bindings: Env }>();
 
-    switch (url.pathname) {
-      case "/backup":
-        return handleBackup(env);
-      case "/episodes":
-        return handleEpisodes(request, env);
-      case "/podcasts":
-        return handlePodcasts(request, env);
-      case "/bookmarks":
-        return handleBookmarks(request, env);
-      case "/export":
-        return handleExport(request, env);
-      default:
-        return new Response("castkeeper", { status: 200 });
-    }
-  },
-
-  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
-    await handleBackup(env);
-  },
-
-  async queue(batch: MessageBatch<BackupQueueMessage>, env: Env): Promise<void> {
-    for (const msg of batch.messages) {
-      await handleQueueMessage(msg.body, env);
-      msg.ack();
-    }
-  },
+// Auth middleware for pages that need a password
+const requireAuth = (c: any, next: any) => {
+  const password = new URL(c.req.url).searchParams.get("password");
+  if (password !== c.env.PASS) {
+    return c.text("Unauthorized", 401);
+  }
+  return next();
 };
+
+app.get("/backup", async (c) => {
+  try {
+    validateEnvironment(c.env);
+    await c.env.BACKUP_QUEUE.send({ type: "sync-podcasts" });
+    return c.json({ success: true, message: "Backup queued" } satisfies BackupResult);
+  } catch (error) {
+    console.error("Backup failed:", error);
+    return c.json(
+      { success: false, error: error instanceof Error ? error.message : "Unknown error" } satisfies BackupResult,
+      500,
+    );
+  }
+});
+
+const EPISODES_PER_PAGE = 50;
+
+app.get("/episodes", requireAuth, async (c) => {
+  try {
+    const url = new URL(c.req.url);
+    const password = url.searchParams.get("password");
+    const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10) || 1);
+    const filters = parseFilters(url.searchParams.getAll("filter"));
+    const offset = (page - 1) * EPISODES_PER_PAGE;
+
+    const [episodes, totalEpisodes] = await Promise.all([
+      getEpisodes(c.env.DB, EPISODES_PER_PAGE, offset, filters),
+      getEpisodeCount(c.env.DB, filters),
+    ]);
+
+    return c.html(
+      <EpisodesPage episodes={episodes} totalEpisodes={totalEpisodes} page={page} perPage={EPISODES_PER_PAGE} password={password} filters={filters} />
+    );
+  } catch (error) {
+    console.error("Episodes failed:", error);
+    return c.text("Error loading episodes", 500);
+  }
+});
+
+app.get("/podcasts", requireAuth, async (c) => {
+  try {
+    const password = new URL(c.req.url).searchParams.get("password");
+    const podcasts = await getPodcastsWithStats(c.env.DB);
+    return c.html(<PodcastsPage podcasts={podcasts} password={password} />);
+  } catch (error) {
+    console.error("Podcasts failed:", error);
+    return c.text("Error loading podcasts", 500);
+  }
+});
+
+app.get("/bookmarks", requireAuth, async (c) => {
+  try {
+    const password = new URL(c.req.url).searchParams.get("password");
+    const bookmarks = await getBookmarksWithEpisodes(c.env.DB);
+    return c.html(<BookmarksPage bookmarks={bookmarks} password={password} />);
+  } catch (error) {
+    console.error("Bookmarks failed:", error);
+    return c.text("Error loading bookmarks", 500);
+  }
+});
+
+app.get("/export", requireAuth, async (c) => {
+  try {
+    const url = new URL(c.req.url);
+    const filters = parseFilters(url.searchParams.getAll("filter"));
+    const episodes = await getEpisodes(c.env.DB, undefined, undefined, filters);
+    const csv = generateCsv(episodes);
+
+    return new Response(csv, {
+      headers: {
+        "Content-Type": "text/csv",
+        "Content-Disposition": `attachment; filename="castkeeper-${new Date().toISOString().split('T')[0]}.csv"`,
+      },
+    });
+  } catch (error) {
+    console.error("Export failed:", error);
+    return c.text("Error exporting data", 500);
+  }
+});
+
+app.get("/", (c) => c.text("castkeeper"));
+
+// Queue and scheduled handlers
 
 async function processPodcastEpisodes(
   token: string,
@@ -56,7 +121,6 @@ async function processPodcastEpisodes(
 
   await updatePodcastEpisodeCount(d1, podcastUuid, cacheData.episode_count);
 
-  // Filter to episodes the user has interacted with
   const interacted = syncData.episodes.filter(
     (ep) => ep.playingStatus > 0 || ep.playedUpTo > 0
   );
@@ -69,7 +133,6 @@ async function processPodcastEpisodes(
   const interactedUuids = interacted.map((ep) => ep.uuid);
   const existingUuids = await getExistingEpisodeUuids(d1, interactedUuids);
 
-  // Split into existing (update sync fields) and new (need metadata)
   const toUpdate: EpisodeUpdate[] = [];
   const newSyncItems: EpisodeSyncItem[] = [];
 
@@ -87,13 +150,11 @@ async function processPodcastEpisodes(
     }
   }
 
-  // Update existing episodes
   if (toUpdate.length > 0) {
     console.log(`[${podcastTitle}] Updating ${toUpdate.length} existing episodes`);
     await updateEpisodeSyncData(d1, toUpdate);
   }
 
-  // Insert new episodes using already-fetched cache data
   if (newSyncItems.length > 0) {
     console.log(`[${podcastTitle}] Inserting ${newSyncItems.length} new episodes`);
 
@@ -105,7 +166,7 @@ async function processPodcastEpisodes(
     const toInsert: NewEpisode[] = [];
     for (const syncItem of newSyncItems) {
       const cached = cacheMap.get(syncItem.uuid);
-      if (!cached) continue; // Episode removed from podcast, skip
+      if (!cached) continue;
 
       toInsert.push({
         uuid: syncItem.uuid,
@@ -139,17 +200,6 @@ async function processPodcastEpisodes(
   return interacted.length;
 }
 
-async function handleBackup(env: Env): Promise<Response> {
-  try {
-    validateEnvironment(env);
-    await env.BACKUP_QUEUE.send({ type: "sync-podcasts" });
-    return createJsonResponse({ success: true, message: "Backup queued" });
-  } catch (error) {
-    console.error("Backup failed:", error);
-    return createErrorResponse(error);
-  }
-}
-
 async function handleQueueMessage(message: BackupQueueMessage, env: Env): Promise<void> {
   switch (message.type) {
     case "sync-podcasts": {
@@ -177,7 +227,6 @@ async function handleQueueMessage(message: BackupQueueMessage, env: Env): Promis
         },
       }));
 
-      // sendBatch accepts up to 100 messages per call
       for (let i = 0; i < messages.length; i += 100) {
         await env.BACKUP_QUEUE.sendBatch(messages.slice(i, i + 100));
       }
@@ -217,125 +266,28 @@ async function handleQueueMessage(message: BackupQueueMessage, env: Env): Promis
   }
 }
 
-const EPISODES_PER_PAGE = 50;
-
-async function handleEpisodes(request: Request, env: Env): Promise<Response> {
-  const url = new URL(request.url);
-  const password = url.searchParams.get("password");
-
-  if (!isAuthorized(password, env.PASS)) {
-    return new Response("Unauthorized", { status: 401 });
-  }
-
-  try {
-    const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10) || 1);
-    const filters = parseFilters(url.searchParams.getAll("filter"));
-    const offset = (page - 1) * EPISODES_PER_PAGE;
-
-    const [episodes, totalEpisodes] = await Promise.all([
-      getEpisodes(env.DB, EPISODES_PER_PAGE, offset, filters),
-      getEpisodeCount(env.DB, filters),
-    ]);
-    const html = generateEpisodesHtml(episodes, totalEpisodes, page, EPISODES_PER_PAGE, password, filters);
-    return new Response(html, {
-      headers: { "Content-Type": "text/html" },
-    });
-  } catch (error) {
-    console.error("Episodes failed:", error);
-    return new Response("Error loading episodes", { status: 500 });
-  }
-}
-
-async function handlePodcasts(request: Request, env: Env): Promise<Response> {
-  const url = new URL(request.url);
-  const password = url.searchParams.get("password");
-
-  if (!isAuthorized(password, env.PASS)) {
-    return new Response("Unauthorized", { status: 401 });
-  }
-
-  try {
-    const podcasts = await getPodcastsWithStats(env.DB);
-    const html = generatePodcastsHtml(podcasts, password);
-    return new Response(html, {
-      headers: { "Content-Type": "text/html" },
-    });
-  } catch (error) {
-    console.error("Podcasts failed:", error);
-    return new Response("Error loading podcasts", { status: 500 });
-  }
-}
-
-async function handleBookmarks(request: Request, env: Env): Promise<Response> {
-  const url = new URL(request.url);
-  const password = url.searchParams.get("password");
-
-  if (!isAuthorized(password, env.PASS)) {
-    return new Response("Unauthorized", { status: 401 });
-  }
-
-  try {
-    const bookmarks = await getBookmarksWithEpisodes(env.DB);
-    const html = generateBookmarksHtml(bookmarks, password);
-    return new Response(html, {
-      headers: { "Content-Type": "text/html" },
-    });
-  } catch (error) {
-    console.error("Bookmarks failed:", error);
-    return new Response("Error loading bookmarks", { status: 500 });
-  }
-}
-
-async function handleExport(request: Request, env: Env): Promise<Response> {
-  const url = new URL(request.url);
-  const password = url.searchParams.get("password");
-
-  if (!isAuthorized(password, env.PASS)) {
-    return new Response("Unauthorized", { status: 401 });
-  }
-
-  try {
-    const filters = parseFilters(url.searchParams.getAll("filter"));
-    const episodes = await getEpisodes(env.DB, undefined, undefined, filters);
-    const csv = generateCsv(episodes);
-
-    return new Response(csv, {
-      headers: {
-        "Content-Type": "text/csv",
-        "Content-Disposition": `attachment; filename="castkeeper-${new Date().toISOString().split('T')[0]}.csv"`,
-      },
-    });
-  } catch (error) {
-    console.error("Export failed:", error);
-    return new Response("Error exporting data", { status: 500 });
-  }
-}
-
-// Utility functions
 function validateEnvironment(env: Env): void {
   if (!env.EMAIL || !env.PASS) {
     throw new Error("EMAIL and PASS environment variables are required");
   }
 }
 
-function isAuthorized(password: string | null, expectedPassword: string): boolean {
-  return password === expectedPassword;
-}
+export default {
+  fetch: app.fetch,
 
-function createJsonResponse(data: BackupResult): Response {
-  return new Response(JSON.stringify(data), {
-    headers: { "Content-Type": "application/json" },
-  });
-}
+  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+    try {
+      validateEnvironment(env);
+      await env.BACKUP_QUEUE.send({ type: "sync-podcasts" });
+    } catch (error) {
+      console.error("Scheduled backup failed:", error);
+    }
+  },
 
-function createErrorResponse(error: unknown): Response {
-  const errorResponse: BackupResult = {
-    success: false,
-    error: error instanceof Error ? error.message : "Unknown error",
-  };
-
-  return new Response(JSON.stringify(errorResponse), {
-    status: 500,
-    headers: { "Content-Type": "application/json" },
-  });
-}
+  async queue(batch: MessageBatch<BackupQueueMessage>, env: Env): Promise<void> {
+    for (const msg of batch.messages) {
+      await handleQueueMessage(msg.body, env);
+      msg.ack();
+    }
+  },
+};

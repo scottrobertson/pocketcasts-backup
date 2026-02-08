@@ -1,5 +1,5 @@
 import type { StoredEpisode } from "./schema";
-import { calculateProgress } from "./templates";
+import { calculateProgress } from "./utils";
 
 function escapeCsvField(field: string | number | null): string {
   if (field === null || field === undefined) return '';

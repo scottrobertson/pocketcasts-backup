@@ -5,6 +5,8 @@
     "lib": ["ES2022", "WebWorker"],
     "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "hono/jsx",
     "strict": true,
     "skipLibCheck": true,
     "declaration": true,
@@ -15,8 +17,7 @@
     "resolveJsonModule": true,
     "allowImportingTsExtensions": false,
     "noEmit": true,
-    "types": ["@cloudflare/workers-types"],
-    "typeRoots": ["./node_modules/@types", "./node_modules/@cloudflare"]
+    "types": ["@cloudflare/workers-types"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

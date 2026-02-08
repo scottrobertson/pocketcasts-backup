@@ -23,6 +23,7 @@
   "author": "Scott",
   "license": "MIT",
   "dependencies": {
-    "drizzle-orm": "^0.45.1"
+    "drizzle-orm": "^0.45.1",
+    "hono": "^4.11.8"
   }
 }

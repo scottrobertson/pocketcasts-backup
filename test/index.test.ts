@@ -27,7 +27,7 @@ describe("worker routes", () => {
       `https://example.com/episodes?password=${env.PASS}`
     );
     expect(response.status).toBe(200);
-    expect(response.headers.get("Content-Type")).toBe("text/html");
+    expect(response.headers.get("Content-Type")).toContain("text/html");
   });
 
   it("returns 401 on /podcasts without password", async () => {
@@ -40,7 +40,7 @@ describe("worker routes", () => {
       `https://example.com/podcasts?password=${env.PASS}`
     );
     expect(response.status).toBe(200);
-    expect(response.headers.get("Content-Type")).toBe("text/html");
+    expect(response.headers.get("Content-Type")).toContain("text/html");
     const html = await response.text();
     expect(html).toContain("Castkeeper");
   });
@@ -55,7 +55,7 @@ describe("worker routes", () => {
       `https://example.com/bookmarks?password=${env.PASS}`
     );
     expect(response.status).toBe(200);
-    expect(response.headers.get("Content-Type")).toBe("text/html");
+    expect(response.headers.get("Content-Type")).toContain("text/html");
     const html = await response.text();
     expect(html).toContain("Castkeeper");
   });
