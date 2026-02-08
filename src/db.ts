@@ -201,18 +201,20 @@ function buildFilterConditions(filters: EpisodeFilter[]) {
   });
 }
 
-export async function getEpisodeCount(d1: D1Database, filters: EpisodeFilter[] = []): Promise<number> {
+export async function getEpisodeCount(d1: D1Database, filters: EpisodeFilter[] = [], podcastUuid?: string): Promise<number> {
   const db = getDb(d1);
   const conditions = buildFilterConditions(filters);
+  if (podcastUuid) conditions.push(eq(episodes.podcast_uuid, podcastUuid));
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
   const result = await db.select({ total: count() }).from(episodes).where(where);
   return result[0].total;
 }
 
-export async function getEpisodes(d1: D1Database, limit?: number, offset?: number, filters: EpisodeFilter[] = []): Promise<StoredEpisode[]> {
+export async function getEpisodes(d1: D1Database, limit?: number, offset?: number, filters: EpisodeFilter[] = [], podcastUuid?: string): Promise<StoredEpisode[]> {
   const db = getDb(d1);
   const conditions = buildFilterConditions(filters);
+  if (podcastUuid) conditions.push(eq(episodes.podcast_uuid, podcastUuid));
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
   // Order by played_at descending, episodes without played_at go last, then by published date
@@ -461,8 +463,9 @@ export async function getPodcastsWithStats(d1: D1Database): Promise<PodcastWithS
   return result.results;
 }
 
-export async function getBookmarksWithEpisodes(d1: D1Database): Promise<BookmarkWithEpisode[]> {
-  const result = await d1.prepare(`
+export async function getBookmarksWithEpisodes(d1: D1Database, podcastUuid?: string): Promise<BookmarkWithEpisode[]> {
+  const where = podcastUuid ? `WHERE b.podcast_uuid = ?` : '';
+  const stmt = d1.prepare(`
     SELECT
       b.*,
       e.title AS episode_title,
@@ -470,8 +473,38 @@ export async function getBookmarksWithEpisodes(d1: D1Database): Promise<Bookmark
       e.duration AS episode_duration
     FROM bookmarks b
     LEFT JOIN episodes e ON b.episode_uuid = e.uuid
+    ${where}
     ORDER BY b.deleted_at IS NOT NULL, b.created_at DESC
-  `).all<BookmarkWithEpisode>();
+  `);
+
+  const result = podcastUuid
+    ? await stmt.bind(podcastUuid).all<BookmarkWithEpisode>()
+    : await stmt.all<BookmarkWithEpisode>();
 
   return result.results;
+}
+
+export async function getPodcastWithStats(d1: D1Database, uuid: string): Promise<PodcastWithStats | null> {
+  const result = await d1.prepare(`
+    SELECT
+      p.*,
+      COALESCE(e.total_episodes, 0) AS total_episodes,
+      COALESCE(e.played_count, 0) AS played_count,
+      COALESCE(e.starred_count, 0) AS starred_count,
+      COALESCE(e.total_played_time, 0) AS total_played_time
+    FROM podcasts p
+    LEFT JOIN (
+      SELECT
+        podcast_uuid,
+        COUNT(*) AS total_episodes,
+        SUM(CASE WHEN playing_status = 3 THEN 1 ELSE 0 END) AS played_count,
+        SUM(CASE WHEN starred = 1 THEN 1 ELSE 0 END) AS starred_count,
+        SUM(played_up_to) AS total_played_time
+      FROM episodes
+      GROUP BY podcast_uuid
+    ) e ON p.uuid = e.podcast_uuid
+    WHERE p.uuid = ?
+  `).bind(uuid).all<PodcastWithStats>();
+
+  return result.results[0] ?? null;
 }

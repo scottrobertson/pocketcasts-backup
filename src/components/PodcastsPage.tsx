@@ -9,22 +9,24 @@ function PodcastHeaderRow() {
     <div class="grid items-center px-3 h-8 border-b border-white/[0.06]" style={`grid-template-columns: ${PODCAST_GRID}; gap: 8px`}>
       <div class="text-[11px] uppercase tracking-wider text-[#555] font-medium">Podcast</div>
       <div class="text-[11px] uppercase tracking-wider text-[#555] font-medium">Episodes</div>
-      <div class="text-[11px] uppercase tracking-wider text-[#555] font-medium">Played</div>
+      <div class="text-[11px] uppercase tracking-wider text-[#555] font-medium">Tracked</div>
       <div class="text-[11px] uppercase tracking-wider text-[#555] font-medium">Listened</div>
       <div class="text-[11px] uppercase tracking-wider text-[#555] font-medium">Added</div>
     </div>
   );
 }
 
-function PodcastRow({ podcast }: { podcast: PodcastWithStats }) {
+function PodcastRow({ podcast, password }: { podcast: PodcastWithStats; password: string | null }) {
+  const href = `/podcast/${podcast.uuid}${password ? `?password=${encodeURIComponent(password)}` : ''}`;
+
   return (
     <div class="grid items-center px-3 h-[52px] border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors duration-150" style={`grid-template-columns: ${PODCAST_GRID}; gap: 8px`}>
       <div class="min-w-0">
-        <div class="text-[#ededef] text-[13px] font-medium truncate">{podcast.title}</div>
+        <div class="truncate"><a href={href} class="text-[#ededef] hover:text-[#fafafa] text-[13px] font-medium underline decoration-[#333] hover:decoration-[#555] transition-colors duration-150">{podcast.title}</a></div>
         <div class="text-[#71717a] text-xs truncate">{podcast.author}</div>
       </div>
       <div class="text-[#71717a] text-xs">{podcast.episode_count || '\u2014'}</div>
-      <div class="text-[#71717a] text-xs">{podcast.played_count || '\u2014'}</div>
+      <div class="text-[#71717a] text-xs">{podcast.total_episodes || '\u2014'}</div>
       <div class="text-[#71717a] text-xs">{podcast.total_played_time > 0 ? formatDuration(podcast.total_played_time) : '\u2014'}</div>
       <div class="text-[#555] text-xs">{formatRelativeDate(podcast.date_added)}</div>
     </div>
@@ -45,13 +47,13 @@ export function PodcastsPage({ podcasts, password }: { podcasts: PodcastWithStat
       </div>
       <div class="overflow-x-auto"><div class="min-w-[540px]">
         <PodcastHeaderRow />
-        {active.map(p => <PodcastRow podcast={p} />)}
+        {active.map(p => <PodcastRow podcast={p} password={password} />)}
       </div></div>
       {deleted.length > 0 && (
         <>
           <div class="flex items-center gap-3 mt-5 mb-2"><span class="text-[11px] uppercase tracking-wider text-[#71717a] font-medium whitespace-nowrap">Removed</span><div class="h-px bg-white/[0.06] flex-1"></div></div>
           <div class="overflow-x-auto"><div class="min-w-[540px]">
-            {deleted.map(p => <div class="opacity-60"><PodcastRow podcast={p} /></div>)}
+            {deleted.map(p => <div class="opacity-60"><PodcastRow podcast={p} password={password} /></div>)}
           </div></div>
         </>
       )}

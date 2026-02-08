@@ -2,11 +2,12 @@
 
 import { Hono } from "hono";
 import type { Context, Next } from "hono";
-import { getEpisodes, getEpisodeCount, getPodcastsWithStats, getBookmarksWithEpisodes, parseFilters } from "./db";
+import { getEpisodes, getEpisodeCount, getPodcastsWithStats, getPodcastWithStats, getBookmarksWithEpisodes, parseFilters } from "./db";
 import { handleQueueMessage } from "./backup";
 import { EpisodesPage } from "./components/EpisodesPage";
 import { PodcastsPage } from "./components/PodcastsPage";
 import { BookmarksPage } from "./components/BookmarksPage";
+import { PodcastPage } from "./components/PodcastPage";
 import { generateCsv } from "./csv";
 import type { Env, BackupResult, BackupQueueMessage } from "./types";
 
@@ -62,6 +63,29 @@ app.get("/podcasts", requireAuth, async (c) => {
   const password = c.req.query("password") ?? null;
   const podcasts = await getPodcastsWithStats(c.env.DB);
   return c.html(<PodcastsPage podcasts={podcasts} password={password} />);
+});
+
+app.get("/podcast/:uuid", requireAuth, async (c) => {
+  const password = c.req.query("password") ?? null;
+  const uuid = c.req.param("uuid");
+  const page = Math.max(1, parseInt(c.req.query("page") || "1", 10) || 1);
+  const filters = parseFilters(c.req.queries("filter") ?? []);
+  const offset = (page - 1) * EPISODES_PER_PAGE;
+
+  const podcast = await getPodcastWithStats(c.env.DB, uuid);
+  if (!podcast) {
+    return c.text("Not Found", 404);
+  }
+
+  const [episodes, totalEpisodes, bookmarks] = await Promise.all([
+    getEpisodes(c.env.DB, EPISODES_PER_PAGE, offset, filters, uuid),
+    getEpisodeCount(c.env.DB, filters, uuid),
+    getBookmarksWithEpisodes(c.env.DB, uuid),
+  ]);
+
+  return c.html(
+    <PodcastPage podcast={podcast} episodes={episodes} totalEpisodes={totalEpisodes} page={page} perPage={EPISODES_PER_PAGE} password={password} filters={filters} bookmarks={bookmarks} />
+  );
 });
 
 app.get("/bookmarks", requireAuth, async (c) => {

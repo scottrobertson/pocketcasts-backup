@@ -43,9 +43,9 @@ describe("PodcastsPage", () => {
     expect(html).toContain("Jane Doe");
   });
 
-  it("shows played count", () => {
-    const html = render([makePodcast({ played_count: 38 })], "pass");
-    expect(html).toContain(">38<");
+  it("shows tracked count", () => {
+    const html = render([makePodcast({ total_episodes: 42 })], "pass");
+    expect(html).toContain(">42<");
   });
 
   it("shows listening time", () => {
@@ -75,7 +75,7 @@ describe("PodcastsPage", () => {
   it("shows column headers", () => {
     const html = render([makePodcast()], "pass");
     expect(html).toContain("Episodes");
-    expect(html).toContain("Played");
+    expect(html).toContain("Tracked");
     expect(html).toContain("Listened");
     expect(html).toContain("Added");
     expect(html).not.toContain("Started");
