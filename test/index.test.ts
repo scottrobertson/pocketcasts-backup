@@ -14,7 +14,7 @@ describe("worker routes", () => {
     const response = await SELF.fetch("https://example.com/");
     expect(response.status).toBe(200);
     const text = await response.text();
-    expect(text).toBe("Pocketcasts Backup Worker");
+    expect(text).toBe("castkeeper");
   });
 
   it("returns 401 on /episodes without password", async () => {
@@ -42,7 +42,7 @@ describe("worker routes", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toBe("text/html");
     const html = await response.text();
-    expect(html).toContain("Pocketcasts Podcasts");
+    expect(html).toContain("Castkeeper");
   });
 
   it("returns 401 on /bookmarks without password", async () => {
@@ -57,7 +57,7 @@ describe("worker routes", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toBe("text/html");
     const html = await response.text();
-    expect(html).toContain("Pocketcasts Bookmarks");
+    expect(html).toContain("Castkeeper");
   });
 
   it("returns 401 on /export without password", async () => {

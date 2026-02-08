@@ -1,5 +1,5 @@
 {
-  "name": "pocketcasts-backup",
+  "name": "castkeeper",
   "version": "1.0.0",
   "description": "Export and save Pocket Casts listen history to Cloudflare D1",
   "type": "module",

@@ -25,7 +25,7 @@ export default {
       case "/export":
         return handleExport(request, env);
       default:
-        return new Response("Pocketcasts Backup Worker", { status: 200 });
+        return new Response("castkeeper", { status: 200 });
     }
   },
 
@@ -302,7 +302,7 @@ async function handleExport(request: Request, env: Env): Promise<Response> {
     return new Response(csv, {
       headers: {
         "Content-Type": "text/csv",
-        "Content-Disposition": `attachment; filename="pocketcasts-history-${new Date().toISOString().split('T')[0]}.csv"`,
+        "Content-Disposition": `attachment; filename="castkeeper-${new Date().toISOString().split('T')[0]}.csv"`,
       },
     });
   } catch (error) {

@@ -1,4 +1,4 @@
-# Pocketcasts Backup
+# castkeeper
 
 A Cloudflare Worker that backs up your Pocket Casts data to a D1 database. Runs on an hourly cron with a web UI to browse everything.
 
@@ -32,8 +32,8 @@ Everything is stored in Cloudflare D1 and synced automatically every hour.
 1. Clone the repo and install dependencies:
 
 ```bash
-git clone https://github.com/scottrobertson/pocketcast-backup.git
-cd pocketcast-backup
+git clone https://github.com/scottrobertson/castkeeper.git
+cd castkeeper
 npm install
 ```
 
@@ -46,7 +46,7 @@ npx wrangler login
 3. Create a D1 database:
 
 ```bash
-npx wrangler d1 create pocketcasts-history
+npx wrangler d1 create castkeeper
 ```
 
 4. Copy the example wrangler config and add your database ID from the previous step:
@@ -67,13 +67,13 @@ npx wrangler secret put PASS
 6. Create the queue:
 
 ```bash
-npx wrangler queues create pocketcasts-backup
+npx wrangler queues create castkeeper
 ```
 
 7. Apply the database migrations and deploy:
 
 ```bash
-npx wrangler d1 migrations apply pocketcasts-history --remote
+npx wrangler d1 migrations apply castkeeper --remote
 npm run deploy
 ```
 
@@ -111,10 +111,10 @@ To apply migrations:
 
 ```bash
 # Local
-npx wrangler d1 migrations apply pocketcasts-history --local
+npx wrangler d1 migrations apply castkeeper --local
 
 # Production
-npx wrangler d1 migrations apply pocketcasts-history --remote
+npx wrangler d1 migrations apply castkeeper --remote
 ```
 
 ## Local Development

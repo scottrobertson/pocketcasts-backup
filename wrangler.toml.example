@@ -1,4 +1,4 @@
-name = "pocketcasts-backup"
+name = "castkeeper"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
@@ -8,16 +8,16 @@ ENVIRONMENT = "production"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "pocketcasts-history"
+database_name = "castkeeper"
 database_id = "your-database-id-here"
 migrations_dir = "migrations"
 
 [[queues.producers]]
-queue = "pocketcasts-backup"
+queue = "castkeeper"
 binding = "BACKUP_QUEUE"
 
 [[queues.consumers]]
-queue = "pocketcasts-backup"
+queue = "castkeeper"
 max_batch_size = 1
 max_retries = 3
 

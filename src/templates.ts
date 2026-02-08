@@ -37,7 +37,7 @@ function layout(title: string, password: string | null, content: string): string
     <nav class="bg-[#111113] border-b border-[#1f1f23] sticky top-0 z-10">
         <div class="max-w-4xl mx-auto px-3 sm:px-6 h-12 flex items-center justify-between">
             <div class="flex items-center gap-6">
-                <span class="text-[#fafafa] font-semibold text-sm hidden sm:inline">Pocketcasts Backup</span>
+                <span class="text-[#fafafa] font-semibold text-sm hidden sm:inline">Castkeeper</span>
                 <svg class="w-5 h-5 text-[#fafafa] sm:hidden shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                 <div class="flex gap-4">
                     <a href="/episodes${params}" class="text-[13px] font-medium text-[#71717a] hover:text-[#fafafa] transition-colors duration-150">Episodes</a>
@@ -272,7 +272,7 @@ export function generateEpisodesHtml(episodes: StoredEpisode[], totalEpisodes: n
         });
     </script>`;
 
-  return layout("Pocketcasts Episodes", password, content);
+  return layout("Castkeeper — Episodes", password, content);
 }
 
 const PODCAST_GRID = '1fr 64px 56px 100px 80px';
@@ -323,7 +323,7 @@ export function generatePodcastsHtml(podcasts: PodcastWithStats[], password: str
         ${deleted.map(p => `<div class="opacity-60">${generatePodcastRow(p)}</div>`).join('')}
     </div></div>` : ''}`;
 
-  return layout("Pocketcasts Podcasts", password, content);
+  return layout("Castkeeper — Podcasts", password, content);
 }
 
 function generateBookmarkRow(bookmark: BookmarkWithEpisode): string {
@@ -363,5 +363,5 @@ export function generateBookmarksHtml(bookmarks: BookmarkWithEpisode[], password
         ${deleted.map(b => `<div class="opacity-60">${generateBookmarkRow(b)}</div>`).join('')}
     </div>` : ''}`;
 
-  return layout("Pocketcasts Bookmarks", password, content);
+  return layout("Castkeeper — Bookmarks", password, content);
 }
