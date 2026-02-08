@@ -48,7 +48,7 @@ export function Layout({ title, password, children }: { title: string; password:
             status.textContent = '';
             status.className = 'text-xs';
             try {
-              var response = await fetch('/backup');
+              var response = await fetch('/backup${params}');
               var result = await response.json();
               if (result.success) {
                 status.textContent = 'Backup enqueued';

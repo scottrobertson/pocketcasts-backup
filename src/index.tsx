@@ -26,7 +26,7 @@ const requireAuth = (c: AppContext, next: Next) => {
 
 app.get("/", (c) => c.text("castkeeper"));
 
-app.get("/backup", async (c) => {
+app.get("/backup", requireAuth, async (c) => {
   try {
     if (!c.env.EMAIL || !c.env.PASS) {
       throw new Error("EMAIL and PASS environment variables are required");

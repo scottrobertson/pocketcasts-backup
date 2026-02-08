@@ -17,8 +17,23 @@ describe("worker routes", () => {
     expect(text).toBe("castkeeper");
   });
 
+  it("returns 401 on /backup without password", async () => {
+    const response = await SELF.fetch("https://example.com/backup");
+    expect(response.status).toBe(401);
+  });
+
+  it("returns 401 on /backup with wrong password", async () => {
+    const response = await SELF.fetch("https://example.com/backup?password=wrong");
+    expect(response.status).toBe(401);
+  });
+
   it("returns 401 on /episodes without password", async () => {
     const response = await SELF.fetch("https://example.com/episodes");
+    expect(response.status).toBe(401);
+  });
+
+  it("returns 401 on /episodes with wrong password", async () => {
+    const response = await SELF.fetch("https://example.com/episodes?password=wrong");
     expect(response.status).toBe(401);
   });
 
@@ -32,6 +47,11 @@ describe("worker routes", () => {
 
   it("returns 401 on /podcasts without password", async () => {
     const response = await SELF.fetch("https://example.com/podcasts");
+    expect(response.status).toBe(401);
+  });
+
+  it("returns 401 on /podcasts with wrong password", async () => {
+    const response = await SELF.fetch("https://example.com/podcasts?password=wrong");
     expect(response.status).toBe(401);
   });
 
@@ -50,6 +70,11 @@ describe("worker routes", () => {
     expect(response.status).toBe(401);
   });
 
+  it("returns 401 on /bookmarks with wrong password", async () => {
+    const response = await SELF.fetch("https://example.com/bookmarks?password=wrong");
+    expect(response.status).toBe(401);
+  });
+
   it("returns HTML on /bookmarks with correct password", async () => {
     const response = await SELF.fetch(
       `https://example.com/bookmarks?password=${env.PASS}`
@@ -62,6 +87,11 @@ describe("worker routes", () => {
 
   it("returns 401 on /export without password", async () => {
     const response = await SELF.fetch("https://example.com/export");
+    expect(response.status).toBe(401);
+  });
+
+  it("returns 401 on /export with wrong password", async () => {
+    const response = await SELF.fetch("https://example.com/export?password=wrong");
     expect(response.status).toBe(401);
   });
 
