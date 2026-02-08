@@ -10,6 +10,7 @@ export default defineWorkersConfig(async () => {
       include: ["test/**/*.test.{ts,tsx}"],
       poolOptions: {
         workers: {
+          main: "./src/index.tsx",
           wrangler: { configPath: "./wrangler.toml" },
           miniflare: {
             d1Databases: { DB: "DB" },
