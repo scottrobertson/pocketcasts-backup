@@ -2,7 +2,7 @@
 
 A Cloudflare Worker that backs up your Pocket Casts data to a D1 database. Runs on an hourly cron with a web UI to browse everything.
 
-<img width="2582" height="1728" alt="2026-02-07 at 21 58 56@2x" src="https://github.com/user-attachments/assets/6ec41d22-a55a-4e47-83f8-ca7ef43247e6" />
+<img width="2272" height="1764" alt="2026-02-08 at 11 31 18@2x" src="https://github.com/user-attachments/assets/089b35a3-3f7c-4c5e-a0be-6b1871d736b5" />
 
 ## What gets backed up
 
